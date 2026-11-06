@@ -109,6 +109,27 @@ function snapshot() {
   return out;
 }
 
+function accessCode(ask: boolean) {
+  let c = localStorage.getItem('sales-os-access') ?? '';
+  if (!c && ask) {
+    c = window.prompt('Sales OS access code') ?? '';
+    if (c) localStorage.setItem('sales-os-access', c);
+  }
+  return c;
+}
+
+async function api(method: 'GET' | 'PUT', body?: string): Promise<Response> {
+  const call = () =>
+    fetch('/api/state', { method, cache: 'no-store', headers: { 'Content-Type': 'application/json', 'x-access-code': accessCode(true) }, body });
+  let r = await call();
+  if (r.status === 401) {
+    localStorage.removeItem('sales-os-access');
+    r = await call();
+    if (r.status === 401) localStorage.removeItem('sales-os-access');
+  }
+  return r;
+}
+
 if (typeof window !== 'undefined') {
   let ready = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -116,16 +137,18 @@ if (typeof window !== 'undefined') {
     if (!ready) return;
     clearTimeout(timer);
     timer = setTimeout(() => {
-      void fetch('/api/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(snapshot()) }).catch(() => undefined);
+      void api('PUT', JSON.stringify(snapshot())).catch(() => undefined);
     }, 700);
   };
-  void fetch('/api/state', { cache: 'no-store' })
+  void api('GET')
     .then((r) => r.json())
     .then((res: { configured?: boolean; data?: Record<string, unknown> | null }) => {
       if (!res.configured) return;
       if (res.data && Array.isArray(res.data.contacts)) useStore.setState(res.data as unknown as Partial<State>);
-      ready = true;
-      if (!res.data) push();
+      if (!('error' in res)) {
+        ready = true;
+        if (!res.data) push();
+      }
     })
     .catch(() => undefined);
   useStore.subscribe(push);
