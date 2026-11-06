@@ -6,8 +6,11 @@ import { useStore } from '@/lib/store';
 import { cn, fmtDate } from '@/lib/utils';
 import { Badge, Button, Card, Empty, inputCls, PageHeader } from '@/components/ui';
 import { ACTIVITY_TYPES, ActivityFormModal } from '@/components/forms';
+<<<<<<< HEAD
 import { toast } from 'sonner';
 import { dbCall } from '@/lib/api';
+=======
+>>>>>>> origin/main
 import type { Activity, Priority } from '@/types/sales-os';
 
 const prTone = (p: Priority) => (p === 'urgent' ? 'red' : p === 'high' ? 'amber' : p === 'medium' ? 'blue' : 'slate');
@@ -31,6 +34,7 @@ export default function ActivitiesPage() {
     return c ? `${c.firstName} ${c.lastName}` : '';
   };
 
+<<<<<<< HEAD
   const toggle = async (a: Activity) => {
     const done = a.status !== 'completed';
     const previous = { ...a };
@@ -49,6 +53,13 @@ export default function ActivitiesPage() {
       toast.error('Failed to update activity. Changes reverted.');
       console.error(err);
     }
+=======
+  const toggle = (a: Activity) => {
+    const done = a.status !== 'completed';
+    upsert('activities', { ...a, status: done ? 'completed' : 'pending' });
+    const c = contacts.find((x) => x.id === a.contactId);
+    if (done && c) upsert('contacts', { ...c, lastContactedAt: new Date().toISOString() });
+>>>>>>> origin/main
   };
 
   return (

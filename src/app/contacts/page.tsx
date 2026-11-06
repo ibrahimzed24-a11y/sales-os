@@ -8,7 +8,10 @@ import { Badge, Button, Card, Drawer, Empty, inputCls, PageHeader } from '@/comp
 import { ActivityFormModal, ContactFormModal, LEAD_STATUSES, REPS, SOURCES } from '@/components/forms';
 import { ImportWizard, Pager, useDebounced, useList } from '@/components/data';
 import { dbCall } from '@/lib/api';
+<<<<<<< HEAD
 import { toast } from 'sonner';
+=======
+>>>>>>> origin/main
 import type { Activity, Contact, LeadStatus } from '@/types/sales-os';
 
 type Row = Contact & { accountName: string };
@@ -70,6 +73,7 @@ export default function ContactsPage() {
 
   const bulk = async (st: string) => {
     if (!st) return;
+<<<<<<< HEAD
     try {
       await dbCall('PATCH', '/api/db/contacts', allMatching ? { all: true, filters, patch: { leadStatus: st } } : { ids: selected, patch: { leadStatus: st } });
       setSelected([]);
@@ -81,6 +85,13 @@ export default function ContactsPage() {
       toast.error('Failed to bulk update contacts');
       console.error(err);
     }
+=======
+    await dbCall('PATCH', '/api/db/contacts', allMatching ? { all: true, filters, patch: { leadStatus: st } } : { ids: selected, patch: { leadStatus: st } });
+    setSelected([]);
+    setAllMatching(false);
+    reload();
+    void refreshDirectory();
+>>>>>>> origin/main
   };
 
   const timeline = open ? activities.filter((a) => a.contactId === open.id).sort((a, b) => b.dueDate.localeCompare(a.dueDate)) : [];

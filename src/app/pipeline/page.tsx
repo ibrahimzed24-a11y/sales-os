@@ -7,8 +7,11 @@ import { isOpen, isStale } from '@/lib/metrics';
 import { cn, fmtDate, initials, money } from '@/lib/utils';
 import { Badge, Button, Card, Empty, inputCls, PageHeader } from '@/components/ui';
 import { DealFormModal } from '@/components/forms';
+<<<<<<< HEAD
 import { toast } from 'sonner';
 import { dbCall } from '@/lib/api';
+=======
+>>>>>>> origin/main
 import type { Deal, StageId } from '@/types/sales-os';
 
 export default function PipelinePage() {
@@ -44,6 +47,7 @@ export default function PipelinePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deals, q, accounts]);
 
+<<<<<<< HEAD
   const moveTo = async (stage: StageId) => {
     const deal = deals.find((d) => d.id === dragId);
     const cfg = stages.find((s) => s.id === stage);
@@ -68,6 +72,16 @@ export default function PipelinePage() {
       toast.error('Failed to move deal. Changes reverted.');
       console.error(e);
     }
+=======
+  const moveTo = (stage: StageId) => {
+    const deal = deals.find((d) => d.id === dragId);
+    const cfg = stages.find((s) => s.id === stage);
+    if (deal && cfg && deal.stage !== stage) {
+      upsert('deals', { ...deal, stage, probability: cfg.probability, updatedAt: new Date().toISOString() });
+    }
+    setDragId(null);
+    setOverStage(null);
+>>>>>>> origin/main
   };
 
   return (

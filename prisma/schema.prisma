@@ -1,4 +1,8 @@
 // Production PostgreSQL schema for Sales OS.
+<<<<<<< HEAD
+=======
+// The app runs on a browser-local store by default; connect this schema via DATABASE_URL when scaling.
+>>>>>>> origin/main
 generator client {
   provider = "prisma-client-js"
 }
@@ -74,6 +78,7 @@ enum PlaybookCategory {
   Framework
 }
 
+<<<<<<< HEAD
 enum Role {
   ADMIN
   MANAGER
@@ -131,12 +136,24 @@ model Account {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
+=======
+model Account {
+  id             String    @id @default(cuid())
+  name           String
+  domain         String
+  industry       String
+  size           Int
+  annualRevenue  Float
+  tier           Tier
+  createdAt      DateTime  @default(now())
+>>>>>>> origin/main
   contacts       Contact[]
   deals          Deal[]
 }
 
 model Contact {
   id              String     @id @default(cuid())
+<<<<<<< HEAD
   accountId       String?
   account         Account?   @relation(fields: [accountId], references: [id])
   userId          String?
@@ -149,12 +166,27 @@ model Contact {
   leadStatus      LeadStatus @default(New)
   leadScore       Int        @default(0)
   source          LeadSource @default(Inbound)
+=======
+  accountId       String
+  account         Account    @relation(fields: [accountId], references: [id])
+  firstName       String
+  lastName        String
+  email           String
+  phone           String
+  role            String
+  leadStatus      LeadStatus @default(New)
+  leadScore       Int        @default(0)
+  source          LeadSource
+>>>>>>> origin/main
   tags            String[]
   owner           String
   lastContactedAt DateTime?
   createdAt       DateTime   @default(now())
+<<<<<<< HEAD
   updatedAt       DateTime   @updatedAt
   deletedAt       DateTime?
+=======
+>>>>>>> origin/main
   deals           Deal[]
   activities      Activity[]
 }
@@ -162,6 +194,7 @@ model Contact {
 model Deal {
   id                String     @id @default(cuid())
   title             String
+<<<<<<< HEAD
   accountId         String?
   account           Account?   @relation(fields: [accountId], references: [id])
   userId            String?
@@ -172,13 +205,26 @@ model Deal {
   value             Float      @default(0)
   currency          String     @default("USD")
   probability       Int        @default(0)
+=======
+  accountId         String
+  account           Account    @relation(fields: [accountId], references: [id])
+  primaryContactId  String
+  primaryContact    Contact    @relation(fields: [primaryContactId], references: [id])
+  stage             DealStage  @default(lead_in)
+  value             Float
+  currency          String     @default("USD")
+  probability       Int
+>>>>>>> origin/main
   expectedCloseDate DateTime
   lossReason        String?
   notes             String     @default("")
   owner             String
   updatedAt         DateTime   @updatedAt
   createdAt         DateTime   @default(now())
+<<<<<<< HEAD
   deletedAt         DateTime?
+=======
+>>>>>>> origin/main
   activities        Activity[]
   quotes            Quote[]
 }
@@ -191,16 +237,22 @@ model Activity {
   status      ActivityStatus @default(pending)
   priority    Priority       @default(medium)
   dueDate     DateTime
+<<<<<<< HEAD
   userId      String?
   user        User?          @relation(fields: [userId], references: [id])
+=======
+>>>>>>> origin/main
   dealId      String?
   deal        Deal?          @relation(fields: [dealId], references: [id])
   contactId   String?
   contact     Contact?       @relation(fields: [contactId], references: [id])
   outcome     String         @default("")
   createdAt   DateTime       @default(now())
+<<<<<<< HEAD
   updatedAt   DateTime       @updatedAt
   deletedAt   DateTime?
+=======
+>>>>>>> origin/main
 }
 
 model Product {
@@ -209,15 +261,20 @@ model Product {
   name         String
   kind         String
   billingCycle String
+<<<<<<< HEAD
   basePrice    Float  @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+=======
+  basePrice    Float
+>>>>>>> origin/main
 }
 
 model Quote {
   id          String      @id @default(cuid())
   dealId      String
   deal        Deal        @relation(fields: [dealId], references: [id])
+<<<<<<< HEAD
   userId      String?
   user        User?       @relation(fields: [userId], references: [id])
   status      QuoteStatus @default(Draft)
@@ -227,6 +284,14 @@ model Quote {
   validUntil  DateTime
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+=======
+  status      QuoteStatus @default(Draft)
+  items       Json
+  taxRate     Float       @default(0)
+  totalAmount Float
+  validUntil  DateTime
+  createdAt   DateTime    @default(now())
+>>>>>>> origin/main
 }
 
 model PlaybookItem {
@@ -237,6 +302,7 @@ model PlaybookItem {
   content   String
   updatedAt DateTime         @updatedAt
 }
+<<<<<<< HEAD
 
 model AuditLog {
   id        String   @id @default(cuid())
@@ -248,3 +314,5 @@ model AuditLog {
   metadata  Json?
   createdAt DateTime @default(now())
 }
+=======
+>>>>>>> origin/main

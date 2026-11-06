@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { cn, fmtDate, uid } from '@/lib/utils';
 import { Badge, Button, Card, Drawer, Empty, FormModal, inputCls, PageHeader } from '@/components/ui';
+<<<<<<< HEAD
 import { toast } from 'sonner';
+=======
+>>>>>>> origin/main
 import { LEAD_STATUSES, REPS, SOURCES } from '@/components/forms';
 import { Pager, useSender, webmailLink, renderTpl, useDebounced, useList } from '@/components/data';
 import { dbCall } from '@/lib/api';
@@ -133,6 +136,7 @@ export default function CampaignsPage() {
 
   const saveC = async (v: Record<string, string>) => {
     const old = editC && editC !== 'new' ? editC : null;
+<<<<<<< HEAD
     try {
       await dbCall('POST', '/api/db/campaigns', { item: {
         id: old?.id ?? uid('cmp'), name: v.name, status: old?.status ?? 'draft', subject: v.subject, templateId: v.templateId,
@@ -184,6 +188,30 @@ export default function CampaignsPage() {
       toast.error('Failed to update email log');
       console.error(err);
     }
+=======
+    await dbCall('POST', '/api/db/campaigns', { item: {
+      id: old?.id ?? uid('cmp'), name: v.name, status: old?.status ?? 'draft', subject: v.subject, templateId: v.templateId,
+      audience: { leadStatus: v.leadStatus, source: v.source, owner: v.owner, tag: v.tag }, dailyLimit: Number(v.dailyLimit) || 40, notes: v.notes ?? '',
+    } });
+    setEditC(null); setOpenC(null); camps.reload();
+  };
+  const saveT = async (v: Record<string, string>) => {
+    const old = editT && editT !== 'new' ? editT : null;
+    await dbCall('POST', '/api/db/email_templates', { item: { id: old?.id ?? uid('tpl'), name: v.name, subject: v.subject, body: v.body } });
+    setEditT(null); tpls.reload();
+  };
+  const delC = async (c: Campaign) => {
+    await dbCall('DELETE', '/api/db/campaigns?id=' + encodeURIComponent(c.id));
+    setEditC(null); setOpenC(null); camps.reload();
+  };
+  const delT = async (x: Template) => {
+    await dbCall('DELETE', '/api/db/email_templates?id=' + encodeURIComponent(x.id));
+    setEditT(null); tpls.reload();
+  };
+  const markLog = async (l: Log, status: string) => {
+    await dbCall('PATCH', '/api/db/email_logs', { ids: [l.id], patch: { status, sentAt: status === 'sent' ? new Date().toISOString() : null } });
+    logs.reload();
+>>>>>>> origin/main
   };
 
   const ec = editC && editC !== 'new' ? editC : null;

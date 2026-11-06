@@ -4,8 +4,11 @@ import { useState } from 'react';
 import { Copy, Plus } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { cn, uid } from '@/lib/utils';
+<<<<<<< HEAD
 import { toast } from 'sonner';
 import { dbCall } from '@/lib/api';
+=======
+>>>>>>> origin/main
 import { Badge, Button, Card, FormModal, inputCls, PageHeader } from '@/components/ui';
 import type { PlaybookCategory, PlaybookItem } from '@/types/sales-os';
 
@@ -86,13 +89,18 @@ export default function PlaybooksPage() {
             content: editing === 'new' ? '' : editing.content,
           }}
           onSubmit={(v) => {
+<<<<<<< HEAD
             const item: PlaybookItem = {
+=======
+            upsert('playbooks', {
+>>>>>>> origin/main
               id: editing === 'new' ? uid('pb') : editing.id,
               category: v.category as PlaybookCategory,
               title: v.title,
               tags: v.tags.split(',').map((t) => t.trim()).filter(Boolean),
               content: v.content,
               updatedAt: new Date().toISOString(),
+<<<<<<< HEAD
             };
             upsert('playbooks', item);
             void dbCall('POST', '/api/db/playbooks', { item }, { silent: true }).catch((err) => {
@@ -112,6 +120,12 @@ export default function PlaybooksPage() {
             }
             setEditing(null);
           }}
+=======
+            });
+            setEditing(null);
+          }}
+          onDelete={editing === 'new' ? undefined : () => { remove('playbooks', editing.id); setEditing(null); }}
+>>>>>>> origin/main
         />
       )}
     </>
