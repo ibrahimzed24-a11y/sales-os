@@ -21,3 +21,8 @@ npm install, then npm run dev
 
 ## Deploy
 Import the repository in Vercel (Framework: Next.js). No environment variables are required.
+
+
+## Access
+
+Set `ACCESS_CODE`, `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in the Vercel project env. `/api/state` requires the `x-access-code` header.
