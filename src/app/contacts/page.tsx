@@ -77,34 +77,55 @@ export default function ContactsPage() {
 
   const importCsv = async (file: File) => {
     const table = parseCSV(await file.text());
-    if (table.length < 2) return;
+    if (table.length < 2) {
+      window.alert('Import failed: the file needs a header row and at least one data row.');
+      return;
+    }
     const head = table[0].map((h) => h.trim());
+    if (!head.includes('firstName') && !head.includes('lastName')) {
+      window.alert('Import failed: the CSV needs a firstName or lastName column. Columns found: ' + head.join(', '));
+      return;
+    }
     const col = (row: string[], name: string) => row[head.indexOf(name)]?.trim() ?? '';
     const now = new Date().toISOString();
-    const imported: Contact[] = table
-      .slice(1)
-      .filter((r) => col(r, 'firstName') || col(r, 'lastName'))
-      .map((r) => {
-        const st = col(r, 'leadStatus') as LeadStatus;
-        const so = col(r, 'source') as LeadSource;
-        return {
-          id: uid('con'),
-          accountId: accounts.find((a) => a.name.toLowerCase() === col(r, 'account').toLowerCase())?.id ?? '',
-          firstName: col(r, 'firstName'),
-          lastName: col(r, 'lastName'),
-          email: col(r, 'email'),
-          phone: col(r, 'phone'),
-          role: col(r, 'role'),
-          leadStatus: LEAD_STATUSES.includes(st) ? st : 'New',
-          leadScore: Number(col(r, 'leadScore')) || 50,
-          source: SOURCES.includes(so) ? so : 'Inbound',
-          tags: col(r, 'tags').split(';').map((t) => t.trim()).filter(Boolean),
-          owner: col(r, 'owner') || REPS[0],
-          lastContactedAt: null,
-          createdAt: now,
-        };
+    const seen = new Set(contacts.map((c) => c.email.toLowerCase()).filter(Boolean));
+    const imported: Contact[] = [];
+    let skippedDup = 0;
+    let skippedNoName = 0;
+    for (const r of table.slice(1)) {
+      if (!r.some((x) => x.trim())) continue;
+      if (!(col(r, 'firstName') || col(r, 'lastName'))) {
+        skippedNoName++;
+        continue;
+      }
+      const email = col(r, 'email');
+      if (email && seen.has(email.toLowerCase())) {
+        skippedDup++;
+        continue;
+      }
+      if (email) seen.add(email.toLowerCase());
+      const st = col(r, 'leadStatus') as LeadStatus;
+      const so = col(r, 'source') as LeadSource;
+      const acct = (col(r, 'account') || col(r, 'company')).toLowerCase();
+      imported.push({
+        id: uid('con'),
+        accountId: accounts.find((a) => a.name.toLowerCase() === acct)?.id ?? '',
+        firstName: col(r, 'firstName'),
+        lastName: col(r, 'lastName'),
+        email,
+        phone: col(r, 'phone'),
+        role: col(r, 'role'),
+        leadStatus: LEAD_STATUSES.includes(st) ? st : 'New',
+        leadScore: Number(col(r, 'leadScore')) || 50,
+        source: SOURCES.includes(so) ? so : 'Inbound',
+        tags: col(r, 'tags').split(';').map((t) => t.trim()).filter(Boolean),
+        owner: col(r, 'owner') || REPS[0],
+        lastContactedAt: null,
+        createdAt: now,
       });
-    upsertMany('contacts', imported);
+    }
+    if (imported.length) upsertMany('contacts', imported);
+    window.alert(`Imported ${imported.length} contact(s). Skipped ${skippedDup} duplicate email(s) and ${skippedNoName} row(s) without a name.`);
   };
 
   const bulk = (st: LeadStatus) => {
