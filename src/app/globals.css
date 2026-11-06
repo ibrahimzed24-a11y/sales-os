@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 248 250 252;
+  --panel: 255 255 255;
+  --raised: 241 245 249;
+  --line: 226 232 240;
+  --fg: 15 23 42;
+  --muted: 100 116 139;
+  --brand: 79 70 229;
+}
+
+.dark {
+  --bg: 11 15 25;
+  --panel: 17 24 39;
+  --raised: 30 41 59;
+  --line: 51 65 85;
+  --fg: 226 232 240;
+  --muted: 148 163 184;
+  --brand: 129 140 248;
+}
+
+body {
+  @apply bg-bg text-fg antialiased;
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0;
+    background: white;
+    color: black;
+  }
+}

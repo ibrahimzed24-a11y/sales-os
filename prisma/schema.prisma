@@ -1,0 +1,250 @@
+// Production PostgreSQL schema for Sales OS.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Tier {
+  Enterprise
+  MidMarket
+  SMB
+}
+
+enum LeadStatus {
+  New
+  Contacted
+  Working
+  Qualified
+  Unqualified
+}
+
+enum LeadSource {
+  Inbound
+  Outbound
+  Referral
+  Partner
+}
+
+enum DealStage {
+  lead_in
+  discovery
+  demo
+  proposal
+  negotiation
+  closed_won
+  closed_lost
+}
+
+enum ActivityType {
+  call
+  email
+  meeting
+  task
+  note
+}
+
+enum ActivityStatus {
+  pending
+  completed
+  overdue
+}
+
+enum Priority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum QuoteStatus {
+  Draft
+  Sent
+  Accepted
+  Declined
+}
+
+enum PlaybookCategory {
+  Script
+  Objection
+  Template
+  Framework
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  REP
+}
+
+// --- NextAuth models ---
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // bcrypt hash
+  role          Role      @default(REP)
+  crmAccounts   Account[] @relation("UserCrmAccounts")
+  contacts      Contact[]
+  deals         Deal[]
+  activities    Activity[]
+  quotes        Quote[]
+  sessions      Session[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- CRM models ---
+
+model Account {
+  id             String    @id @default(cuid())
+  userId         String?
+  user           User?     @relation("UserCrmAccounts", fields: [userId], references: [id])
+  name           String
+  domain         String?
+  industry       String?
+  size           Int       @default(0)
+  annualRevenue  Float     @default(0)
+  tier           Tier      @default(SMB)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  contacts       Contact[]
+  deals          Deal[]
+}
+
+model Contact {
+  id              String     @id @default(cuid())
+  accountId       String?
+  account         Account?   @relation(fields: [accountId], references: [id])
+  userId          String?
+  user            User?      @relation(fields: [userId], references: [id])
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  role            String?
+  leadStatus      LeadStatus @default(New)
+  leadScore       Int        @default(0)
+  source          LeadSource @default(Inbound)
+  tags            String[]
+  owner           String
+  lastContactedAt DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+  deals           Deal[]
+  activities      Activity[]
+}
+
+model Deal {
+  id                String     @id @default(cuid())
+  title             String
+  accountId         String?
+  account           Account?   @relation(fields: [accountId], references: [id])
+  userId            String?
+  user              User?      @relation(fields: [userId], references: [id])
+  primaryContactId  String?
+  primaryContact    Contact?   @relation(fields: [primaryContactId], references: [id])
+  stage             DealStage  @default(lead_in)
+  value             Float      @default(0)
+  currency          String     @default("USD")
+  probability       Int        @default(0)
+  expectedCloseDate DateTime
+  lossReason        String?
+  notes             String     @default("")
+  owner             String
+  updatedAt         DateTime   @updatedAt
+  createdAt         DateTime   @default(now())
+  deletedAt         DateTime?
+  activities        Activity[]
+  quotes            Quote[]
+}
+
+model Activity {
+  id          String         @id @default(cuid())
+  type        ActivityType
+  subject     String
+  description String         @default("")
+  status      ActivityStatus @default(pending)
+  priority    Priority       @default(medium)
+  dueDate     DateTime
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id])
+  dealId      String?
+  deal        Deal?          @relation(fields: [dealId], references: [id])
+  contactId   String?
+  contact     Contact?       @relation(fields: [contactId], references: [id])
+  outcome     String         @default("")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+}
+
+model Product {
+  id           String @id @default(cuid())
+  sku          String @unique
+  name         String
+  kind         String
+  billingCycle String
+  basePrice    Float  @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Quote {
+  id          String      @id @default(cuid())
+  dealId      String
+  deal        Deal        @relation(fields: [dealId], references: [id])
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id])
+  status      QuoteStatus @default(Draft)
+  items       Json
+  taxRate     Float       @default(0)
+  totalAmount Float       @default(0)
+  validUntil  DateTime
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model PlaybookItem {
+  id        String           @id @default(cuid())
+  category  PlaybookCategory
+  title     String
+  tags      String[]
+  content   String
+  updatedAt DateTime         @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
