@@ -143,6 +143,14 @@ export default function CampaignsPage() {
     await dbCall('POST', '/api/db/email_templates', { item: { id: old?.id ?? uid('tpl'), name: v.name, subject: v.subject, body: v.body } });
     setEditT(null); tpls.reload();
   };
+  const delC = async (c: Campaign) => {
+    await dbCall('DELETE', '/api/db/campaigns?id=' + encodeURIComponent(c.id));
+    setEditC(null); setOpenC(null); camps.reload();
+  };
+  const delT = async (x: Template) => {
+    await dbCall('DELETE', '/api/db/email_templates?id=' + encodeURIComponent(x.id));
+    setEditT(null); tpls.reload();
+  };
   const markLog = async (l: Log, status: string) => {
     await dbCall('PATCH', '/api/db/email_logs', { ids: [l.id], patch: { status, sentAt: status === 'sent' ? new Date().toISOString() : null } });
     logs.reload();
@@ -266,6 +274,7 @@ export default function CampaignsPage() {
             { key: 'notes', label: 'Notes', type: 'textarea' },
           ]}
           onSubmit={(v) => void saveC(v)}
+          onDelete={ec ? () => void delC(ec) : undefined}
           onClose={() => setEditC(null)}
         />
       )}
@@ -279,6 +288,7 @@ export default function CampaignsPage() {
             { key: 'body', label: 'Body (supports {{first_name}}, {{last_name}}, {{company}}, {{role}})', type: 'textarea' },
           ]}
           onSubmit={(v) => void saveT(v)}
+          onDelete={et ? () => void delT(et) : undefined}
           onClose={() => setEditT(null)}
         />
       )}
