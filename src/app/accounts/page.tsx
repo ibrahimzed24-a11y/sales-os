@@ -44,9 +44,18 @@ export default function AccountsPage() {
       window.alert('Import failed: the file needs a header row and at least one data row.');
       return;
     }
-    const head = table[0].map((h) => h.trim());
+    const ALIAS: Record<string, string> = {
+      name: 'name', accountname: 'name', company: 'name', companyname: 'name', account: 'name', organization: 'name', organisation: 'name',
+      domain: 'domain', website: 'domain', url: 'domain',
+      industry: 'industry', sector: 'industry',
+      size: 'size', employees: 'size', headcount: 'size', numberofemployees: 'size',
+      annualrevenue: 'annualRevenue', revenue: 'annualRevenue',
+      tier: 'tier', segment: 'tier',
+    };
+    const canon = (h: string) => ALIAS[h.replace(/^\uFEFF/, '').toLowerCase().replace(/[^a-z0-9]/g, '')] ?? h.trim();
+    const head = table[0].map(canon);
     if (!head.includes('name')) {
-      window.alert('Import failed: the CSV needs a name column. Columns found: ' + head.join(', '));
+      window.alert('Import failed: the CSV needs a company name column (e.g. Name or Company). Columns found: ' + table[0].map((h) => h.trim()).join(', '));
       return;
     }
     const col = (row: string[], name: string) => row[head.indexOf(name)]?.trim() ?? '';
