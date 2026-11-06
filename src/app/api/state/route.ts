@@ -34,7 +34,7 @@ export async function PUT(req: Request) {
   if (!URL_ || !KEY) return NextResponse.json({ configured: false }, { status: 503 });
   if (!authorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
-  if (!body || typeof body !== 'object' || !Array.isArray(body.contacts) || !Array.isArray(body.accounts)) {
+  if (!body || typeof body !== 'object' || !body.settings) {
     return NextResponse.json({ error: 'invalid_state' }, { status: 400 });
   }
   const r = await fetch(`${URL_}/rest/v1/sales_os_state?on_conflict=workspace`, {
