@@ -1,0 +1,176 @@
+// Production PostgreSQL schema for Sales OS.
+// The app runs on a browser-local store by default; connect this schema via DATABASE_URL when scaling.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Tier {
+  Enterprise
+  MidMarket
+  SMB
+}
+
+enum LeadStatus {
+  New
+  Contacted
+  Working
+  Qualified
+  Unqualified
+}
+
+enum LeadSource {
+  Inbound
+  Outbound
+  Referral
+  Partner
+}
+
+enum DealStage {
+  lead_in
+  discovery
+  demo
+  proposal
+  negotiation
+  closed_won
+  closed_lost
+}
+
+enum ActivityType {
+  call
+  email
+  meeting
+  task
+  note
+}
+
+enum ActivityStatus {
+  pending
+  completed
+  overdue
+}
+
+enum Priority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum QuoteStatus {
+  Draft
+  Sent
+  Accepted
+  Declined
+}
+
+enum PlaybookCategory {
+  Script
+  Objection
+  Template
+  Framework
+}
+
+model Account {
+  id             String    @id @default(cuid())
+  name           String
+  domain         String
+  industry       String
+  size           Int
+  annualRevenue  Float
+  tier           Tier
+  createdAt      DateTime  @default(now())
+  contacts       Contact[]
+  deals          Deal[]
+}
+
+model Contact {
+  id              String     @id @default(cuid())
+  accountId       String
+  account         Account    @relation(fields: [accountId], references: [id])
+  firstName       String
+  lastName        String
+  email           String
+  phone           String
+  role            String
+  leadStatus      LeadStatus @default(New)
+  leadScore       Int        @default(0)
+  source          LeadSource
+  tags            String[]
+  owner           String
+  lastContactedAt DateTime?
+  createdAt       DateTime   @default(now())
+  deals           Deal[]
+  activities      Activity[]
+}
+
+model Deal {
+  id                String     @id @default(cuid())
+  title             String
+  accountId         String
+  account           Account    @relation(fields: [accountId], references: [id])
+  primaryContactId  String
+  primaryContact    Contact    @relation(fields: [primaryContactId], references: [id])
+  stage             DealStage  @default(lead_in)
+  value             Float
+  currency          String     @default("USD")
+  probability       Int
+  expectedCloseDate DateTime
+  lossReason        String?
+  notes             String     @default("")
+  owner             String
+  updatedAt         DateTime   @updatedAt
+  createdAt         DateTime   @default(now())
+  activities        Activity[]
+  quotes            Quote[]
+}
+
+model Activity {
+  id          String         @id @default(cuid())
+  type        ActivityType
+  subject     String
+  description String         @default("")
+  status      ActivityStatus @default(pending)
+  priority    Priority       @default(medium)
+  dueDate     DateTime
+  dealId      String?
+  deal        Deal?          @relation(fields: [dealId], references: [id])
+  contactId   String?
+  contact     Contact?       @relation(fields: [contactId], references: [id])
+  outcome     String         @default("")
+  createdAt   DateTime       @default(now())
+}
+
+model Product {
+  id           String @id @default(cuid())
+  sku          String @unique
+  name         String
+  kind         String
+  billingCycle String
+  basePrice    Float
+}
+
+model Quote {
+  id          String      @id @default(cuid())
+  dealId      String
+  deal        Deal        @relation(fields: [dealId], references: [id])
+  status      QuoteStatus @default(Draft)
+  items       Json
+  taxRate     Float       @default(0)
+  totalAmount Float
+  validUntil  DateTime
+  createdAt   DateTime    @default(now())
+}
+
+model PlaybookItem {
+  id        String           @id @default(cuid())
+  category  PlaybookCategory
+  title     String
+  tags      String[]
+  content   String
+  updatedAt DateTime         @updatedAt
+}
