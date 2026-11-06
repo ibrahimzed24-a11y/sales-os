@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Download, Plus, Upload } from 'lucide-react';
 import { useStore, useUi } from '@/lib/store';
-import { cn, money } from '@/lib/utils';
+import { cn, download, money, parseCSV, toCSV, uid } from '@/lib/utils';
 import { Badge, Button, Card, Drawer, Empty, inputCls, PageHeader } from '@/components/ui';
 import { AccountFormModal } from '@/components/forms';
 import type { Account } from '@/types/sales-os';
 
 export default function AccountsPage() {
   const accounts = useStore((s) => s.accounts);
+  const upsertMany = useStore((s) => s.upsertMany);
+  const fileRef = useRef<HTMLInputElement>(null);
   const contacts = useStore((s) => s.contacts);
   const deals = useStore((s) => s.deals);
   const stages = useStore((s) => s.settings.stages);
@@ -28,6 +30,58 @@ export default function AccountsPage() {
       setFocus(null);
     }
   }, [focus, setFocus]);
+
+  const exportCsv = () =>
+    download(
+      'accounts.csv',
+      toCSV(accounts.map((a) => ({ name: a.name, domain: a.domain, industry: a.industry, size: a.size, annualRevenue: a.annualRevenue, tier: a.tier }))),
+      'text/csv',
+    );
+
+  const importCsv = async (file: File) => {
+    const table = parseCSV(await file.text());
+    if (table.length < 2) {
+      window.alert('Import failed: the file needs a header row and at least one data row.');
+      return;
+    }
+    const head = table[0].map((h) => h.trim());
+    if (!head.includes('name')) {
+      window.alert('Import failed: the CSV needs a name column. Columns found: ' + head.join(', '));
+      return;
+    }
+    const col = (row: string[], name: string) => row[head.indexOf(name)]?.trim() ?? '';
+    const now = new Date().toISOString();
+    const seen = new Set(accounts.map((a) => a.name.toLowerCase()));
+    const imported: Account[] = [];
+    let skippedDup = 0;
+    let skippedNoName = 0;
+    for (const r of table.slice(1)) {
+      if (!r.some((x) => x.trim())) continue;
+      const name = col(r, 'name');
+      if (!name) {
+        skippedNoName++;
+        continue;
+      }
+      if (seen.has(name.toLowerCase())) {
+        skippedDup++;
+        continue;
+      }
+      seen.add(name.toLowerCase());
+      const tier = col(r, 'tier') as Account['tier'];
+      imported.push({
+        id: uid('acc'),
+        name,
+        domain: col(r, 'domain'),
+        industry: col(r, 'industry'),
+        size: Number(col(r, 'size')) || 0,
+        annualRevenue: Number(col(r, 'annualRevenue')) || 0,
+        tier: ['Enterprise', 'Mid-Market', 'SMB'].includes(tier) ? tier : 'SMB',
+        createdAt: now,
+      });
+    }
+    if (imported.length) upsertMany('accounts', imported);
+    window.alert(`Imported ${imported.length} account(s). Skipped ${skippedDup} duplicate name(s) and ${skippedNoName} row(s) without a name.`);
+  };
 
   const total = (id: string) =>
     deals.filter((d) => d.accountId === id && d.stage !== 'closed_lost').reduce((a, d) => a + d.value, 0);
@@ -50,6 +104,9 @@ export default function AccountsPage() {
               <option>Mid-Market</option>
               <option>SMB</option>
             </select>
+            <input ref={fileRef} type="file" accept=".csv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importCsv(f); e.target.value = ''; }} />
+            <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload size={14} /> Import CSV</Button>
+            <Button variant="outline" onClick={exportCsv}><Download size={14} /> Export CSV</Button>
             <Button onClick={() => setCreating(true)}><Plus size={14} /> New account</Button>
           </>
         }
