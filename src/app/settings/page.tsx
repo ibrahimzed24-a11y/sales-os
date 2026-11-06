@@ -85,7 +85,7 @@ export default function SettingsPage() {
             <Button variant="outline" onClick={() => { if (window.confirm('Replace all data with demo data?')) { seedDemo(); setMsg('Demo data restored.'); } }}>Reset to Demo Data</Button>
             <Button variant="danger" onClick={() => { if (window.confirm('Delete ALL data in this workspace?')) { clearAll(); setMsg('Workspace cleared.'); } }}>Clear All Data</Button>
           </div>
-          <p className="mt-3 text-xs text-muted">Data is stored in this browser. A PostgreSQL schema (prisma/schema.prisma) is included for connecting a cloud database via DATABASE_URL.</p>
+          <p className="mt-3 text-xs text-muted">Contacts, accounts, templates, campaigns and email logs are stored in Supabase. Deals, activities, quotes and these settings are synced to the cloud as a JSON state.</p>
         </Card>
       </div>
     </>
