@@ -4,10 +4,7 @@ import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { cn, fmtDate, uid } from '@/lib/utils';
 import { Badge, Button, Card, Drawer, Empty, FormModal, inputCls, PageHeader } from '@/components/ui';
-<<<<<<< HEAD
 import { toast } from 'sonner';
-=======
->>>>>>> origin/main
 import { LEAD_STATUSES, REPS, SOURCES } from '@/components/forms';
 import { Pager, useSender, webmailLink, renderTpl, useDebounced, useList } from '@/components/data';
 import { dbCall } from '@/lib/api';
@@ -35,6 +32,7 @@ function CampaignDrawer({ c, templates, onClose, onEdit, onChanged }: { c: Campa
   const [sample, setSample] = useState<CRow | null>(null);
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [sending, setSending] = useState(false);
   const [tick, setTick] = useState(0);
   const tpl = templates.find((t) => t.id === c.templateId);
   const sender = useSender();
@@ -64,12 +62,51 @@ function CampaignDrawer({ c, templates, onClose, onEdit, onChanged }: { c: Campa
         n += items.length;
         if (r.rows.length < 1000) break;
       }
-      setMsg('Prepared ' + n + ' email log rows (status: prepared). No email was sent.');
+      setMsg('Prepared ' + n + ' email log rows.');
     } catch (e) {
       setMsg('Failed: ' + (e instanceof Error ? e.message : 'error'));
     }
     setBusy(false);
     setTick((t) => t + 1);
+  };
+
+  const sendPrepared = async () => {
+    // Fetch all prepared logs for this campaign
+    let allLogs: Log[] = [];
+    for (let p = 1; p <= 20; p++) {
+      const r = await dbCall<{ rows: Log[]; total: number }>('GET', '/api/db/email_logs?pageSize=100&status=prepared&campaignId=' + c.id + '&page=' + p);
+      allLogs.push(...r.rows);
+      if (r.rows.length < 100) break;
+    }
+    if (allLogs.length === 0) { setMsg('No prepared emails to send.'); return; }
+
+    setSending(true);
+    let sent = 0, failed = 0;
+    try {
+      for (const log of allLogs) {
+        try {
+          await fetch('/api/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: log.toEmail,
+              subject: log.subject,
+              html: log.body.replace(/\n/g, '<br>'),
+              text: log.body,
+            }),
+          });
+          await dbCall('PATCH', '/api/db/email_logs', { ids: [log.id], patch: { status: 'sent', sentAt: new Date().toISOString() } }, { silent: true });
+          sent++;
+        } catch {
+          await dbCall('PATCH', '/api/db/email_logs', { ids: [log.id], patch: { status: 'failed' } }, { silent: true });
+          failed++;
+        }
+      }
+      setMsg(`Sent ${sent} email(s)${failed ? ', ' + failed + ' failed' : ''}.`);
+      setTick((t) => t + 1);
+    } finally {
+      setSending(false);
+    }
   };
 
   const setStatus = async (status: string) => {
@@ -100,13 +137,20 @@ function CampaignDrawer({ c, templates, onClose, onEdit, onChanged }: { c: Campa
       )}
       <div className="mt-4 flex flex-wrap gap-2">
         <Button variant="outline" onClick={onEdit}>Edit</Button>
-        <Button disabled={busy} onClick={() => void prepare()}>{busy ? 'Preparing...' : 'Prepare send list (does not send)'}</Button>
+        <Button disabled={busy} onClick={() => void prepare()}>{busy ? 'Preparing...' : 'Prepare send list'}</Button>
+        <Button
+          disabled={sending || info.logs === 0}
+          onClick={() => void sendPrepared()}
+          className="bg-green-600 text-white hover:bg-green-500"
+        >
+          {sending ? 'Sending…' : 'Send via Resend'}
+        </Button>
         {c.status === 'draft' && <Button variant="outline" onClick={() => void setStatus('ready')}>Mark ready</Button>}
         {c.status === 'ready' && <Button variant="outline" onClick={() => void setStatus('draft')}>Back to draft</Button>}
       </div>
       {msg && <p className="mt-2 text-sm">{msg}</p>}
       <p className="mt-4 rounded border border-line p-3 text-xs text-muted">
-        Sending is not enabled in this app. Campaigns stay draft/ready and nothing is emailed. Prepared rows appear in Email Logs, where each one can be opened as a Hostinger Webmail compose window and sent manually from {sender}. Log in to that mailbox in Hostinger Webmail first.
+        Send prepared emails via Resend (requires RESEND_API_KEY in env). Individual logs can still be opened in Hostinger Webmail for manual sending from {sender}.
       </p>
     </Drawer>
   );
@@ -136,7 +180,6 @@ export default function CampaignsPage() {
 
   const saveC = async (v: Record<string, string>) => {
     const old = editC && editC !== 'new' ? editC : null;
-<<<<<<< HEAD
     try {
       await dbCall('POST', '/api/db/campaigns', { item: {
         id: old?.id ?? uid('cmp'), name: v.name, status: old?.status ?? 'draft', subject: v.subject, templateId: v.templateId,
@@ -188,30 +231,6 @@ export default function CampaignsPage() {
       toast.error('Failed to update email log');
       console.error(err);
     }
-=======
-    await dbCall('POST', '/api/db/campaigns', { item: {
-      id: old?.id ?? uid('cmp'), name: v.name, status: old?.status ?? 'draft', subject: v.subject, templateId: v.templateId,
-      audience: { leadStatus: v.leadStatus, source: v.source, owner: v.owner, tag: v.tag }, dailyLimit: Number(v.dailyLimit) || 40, notes: v.notes ?? '',
-    } });
-    setEditC(null); setOpenC(null); camps.reload();
-  };
-  const saveT = async (v: Record<string, string>) => {
-    const old = editT && editT !== 'new' ? editT : null;
-    await dbCall('POST', '/api/db/email_templates', { item: { id: old?.id ?? uid('tpl'), name: v.name, subject: v.subject, body: v.body } });
-    setEditT(null); tpls.reload();
-  };
-  const delC = async (c: Campaign) => {
-    await dbCall('DELETE', '/api/db/campaigns?id=' + encodeURIComponent(c.id));
-    setEditC(null); setOpenC(null); camps.reload();
-  };
-  const delT = async (x: Template) => {
-    await dbCall('DELETE', '/api/db/email_templates?id=' + encodeURIComponent(x.id));
-    setEditT(null); tpls.reload();
-  };
-  const markLog = async (l: Log, status: string) => {
-    await dbCall('PATCH', '/api/db/email_logs', { ids: [l.id], patch: { status, sentAt: status === 'sent' ? new Date().toISOString() : null } });
-    logs.reload();
->>>>>>> origin/main
   };
 
   const ec = editC && editC !== 'new' ? editC : null;
@@ -221,7 +240,7 @@ export default function CampaignsPage() {
     <>
       <PageHeader
         title="Campaigns"
-        subtitle={'Plan campaigns, templates and email logs. Nothing is sent from here. Default From: ' + sender}
+        subtitle={'Plan campaigns, templates and email logs. Send via Resend or Hostinger Webmail. Default From: ' + sender}
         actions={
           <>
             {tab === 'campaigns' && <Button onClick={() => setEditC('new')}><Plus size={14} /> New campaign</Button>}
@@ -229,7 +248,7 @@ export default function CampaignsPage() {
           </>
         }
       />
-      <p className="mb-2 text-xs text-muted">Default sender (From): <span className="font-medium text-fg">{sender}</span> · manual sending via Hostinger Webmail</p>
+      <p className="mb-2 text-xs text-muted">Default sender (From): <span className="font-medium text-fg">{sender}</span> · Resend or Hostinger Webmail</p>
       <div className="mb-3 flex gap-2">
         {(['campaigns', 'templates', 'logs'] as const).map((t) => (
           <Button key={t} variant={tab === t ? 'primary' : 'outline'} onClick={() => setTab(t)}>{t === 'logs' ? 'Email Logs' : t === 'templates' ? 'Templates' : 'Campaigns'}</Button>
@@ -300,10 +319,10 @@ export default function CampaignsPage() {
                       <td className="px-3 py-2">{cName(l.campaignId)}</td>
                       <td className="px-3 py-2"><Badge tone={tone(l.status)}>{l.status}</Badge></td>
                       <td className="px-3 py-2">{fmtDate(l.preparedAt)}</td>
-                      <td className="flex gap-2 px-3 py-2 text-xs">
-                        <a className="text-brand underline" target="_blank" rel="noreferrer" href={webmailLink(l.toEmail, l.subject, l.body)}>Open in Hostinger Webmail</a>
-                        {l.status !== 'sent' && <button className="underline" onClick={() => void markLog(l, 'sent')}>Mark sent</button>}
-                        {l.status === 'prepared' && <button className="underline" onClick={() => void markLog(l, 'skipped')}>Skip</button>}
+                      <td className="px-3 py-2 text-xs">
+                        <a className="text-brand underline" target="_blank" rel="noreferrer" href={webmailLink(l.toEmail, l.subject, l.body)}>Webmail</a>
+                        {l.status !== 'sent' && <button className="underline ml-2" onClick={() => void markLog(l, 'sent')}>Mark sent</button>}
+                        {l.status === 'prepared' && <button className="underline ml-2" onClick={() => void markLog(l, 'skipped')}>Skip</button>}
                       </td>
                     </tr>
                   ))}
