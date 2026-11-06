@@ -192,11 +192,11 @@ if (typeof window !== 'undefined') {
   useStore.setState({
     upsert: ((key: EntityKey, item: unknown) => {
       base.upsert(key, item as never);
-      void mirror(key, [item]);
+      void mirror(key, [item]).catch(() => undefined);
     }) as State['upsert'],
     upsertMany: ((key: EntityKey, items: unknown[]) => {
       base.upsertMany(key, items as never);
-      void mirror(key, items);
+      void mirror(key, items).catch(() => undefined);
     }) as State['upsertMany'],
     remove: ((key: EntityKey, id: string) => {
       base.remove(key, id);

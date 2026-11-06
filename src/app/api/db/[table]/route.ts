@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { check, COLS, list, patch, remove, upsert } from '@/lib/server';
+import { prisma } from '@/lib/prisma';
+import { verifyToken } from '@/lib/auth-utils';
 import {
   validateAccount,
   validateContact,
@@ -8,19 +9,29 @@ import {
   validateProduct,
   validateQuote,
   validatePlaybookItem,
-  type AccountInput,
-  type ContactInput,
-  type DealInput,
-  type ActivityInput,
-  type ProductInput,
-  type QuoteInput,
-  type PlaybookItemInput,
 } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
-type Ctx = { params: Promise<{ table: string }> };
-type Body = Record<string, unknown>;
+const COOKIE_NAME = 'sales-os-session';
+
+function getSession(req: Request): { userId: string; email: string; role: string } | null {
+  const cookie = req.headers.get('cookie') ?? '';
+  const match = cookie.match(new RegExp(`(?:^|; )${COOKIE_NAME}=([^;]+)`));
+  if (!match) return null;
+  return verifyToken(match[1]);
+}
+
+// Map table name to Prisma model and its id field
+const MODEL_MAP: Record<string, { model: string; idField: string }> = {
+  accounts: { model: 'account', idField: 'id' },
+  contacts: { model: 'contact', idField: 'id' },
+  deals: { model: 'deal', idField: 'id' },
+  activities: { model: 'activity', idField: 'id' },
+  products: { model: 'product', idField: 'id' },
+  quotes: { model: 'quote', idField: 'id' },
+  playbooks: { model: 'playbookItem', idField: 'id' },
+};
 
 const VALIDATORS: Record<string, (data: unknown) => { success: boolean; data?: unknown; error?: unknown }> = {
   accounts: (d) => validateAccount(d),
@@ -32,91 +43,170 @@ const VALIDATORS: Record<string, (data: unknown) => { success: boolean; data?: u
   playbooks: (d) => validatePlaybookItem(d),
 };
 
-async function guard(req: Request, ctx: Ctx, write: boolean): Promise<{ table: string } | NextResponse> {
-  const bad = check(req);
-  if (bad) return NextResponse.json(await bad.json(), { status: bad.status });
-  const { table } = await ctx.params;
-  if (!COLS[table] || (write && table === 'import_jobs')) return NextResponse.json({ error: 'unknown_table' }, { status: 404 });
-  return { table };
-}
-
-const out = (res: Record<string, unknown>) =>
-  NextResponse.json(res, { status: res.error ? (res.error === 'empty_patch' || res.error === 'bad_id' ? 400 : 502) : 200 });
-
-function validateItems(table: string, items: Body[]): { valid: Body[]; errors: { index: number; message: string }[] } {
-  const validator = VALIDATORS[table];
-  const valid: Body[] = [];
-  const errors: { index: number; message: string }[] = [];
-  if (!validator) {
-    // No schema for this table; pass through
-    return { valid: items, errors: [] };
+async function auth(req: Request) {
+  const session = getSession(req);
+  if (!session) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
-  items.forEach((item, index) => {
-    const result = validator(item);
-    if (result.success) {
-      valid.push(result.data as Body);
-    } else {
-      const zodError = result.error as { issues?: Array<{ message: string }> };
-      errors.push({ index, message: zodError.issues?.map((i) => i.message).join(', ') || 'Invalid item' });
+  return session;
+}
+
+export async function GET(req: Request, ctx: { params: Promise<{ table: string }> }) {
+  const session = await auth(req);
+  if (session instanceof NextResponse) return session;
+  const { table } = await ctx.params;
+  const modelInfo = MODEL_MAP[table];
+  if (!modelInfo) return NextResponse.json({ error: 'unknown_table' }, { status: 404 });
+
+  const url = new URL(req.url);
+  const pageSize = Math.min(200, Math.max(1, Number(url.searchParams.get('pageSize')) || 50));
+  const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+  const where: Record<string, unknown> = {};
+
+  // Simple filters
+  const filterParam = url.searchParams.get('filter');
+  if (filterParam) {
+    try {
+      const f = JSON.parse(filterParam);
+      Object.assign(where, f);
+    } catch {
+      /* ignore invalid filter */
     }
-  });
-  return { valid, errors };
+  }
+
+  // Search
+  const q = (url.searchParams.get('q') ?? '').trim();
+  if (q && (table === 'contacts' || table === 'accounts')) {
+    where.OR = [
+      { firstName: { contains: q, mode: 'insensitive' } },
+      { lastName: { contains: q, mode: 'insensitive' } },
+      { name: { contains: q, mode: 'insensitive' } },
+      { email: { contains: q, mode: 'insensitive' } },
+    ];
+  }
+
+  const sort = url.searchParams.get('sort') || 'createdAt';
+  const dir = (url.searchParams.get('dir') || 'desc') as 'asc' | 'desc';
+
+  const [rows, total] = await Promise.all([
+    (prisma as any)[modelInfo.model].findMany({
+      where,
+      orderBy: { [sort]: dir },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    (prisma as any)[modelInfo.model].count({ where }),
+  ]);
+
+  return NextResponse.json({ rows, total, page, pageSize });
 }
 
-export async function GET(req: Request, ctx: Ctx) {
-  const g = await guard(req, ctx, false);
-  if (g instanceof NextResponse) return g;
-  return out(await list(g.table, new URL(req.url).searchParams));
-}
+export async function POST(req: Request, ctx: { params: Promise<{ table: string }> }) {
+  const session = await auth(req);
+  if (session instanceof NextResponse) return session;
+  const { table } = await ctx.params;
+  const modelInfo = MODEL_MAP[table];
+  if (!modelInfo) return NextResponse.json({ error: 'unknown_table' }, { status: 404 });
 
-export async function POST(req: Request, ctx: Ctx) {
-  const g = await guard(req, ctx, true);
-  if (g instanceof NextResponse) return g;
-  const body = (await req.json().catch(() => null)) as { items?: Body[]; item?: Body } | null;
+  const body = (await req.json().catch(() => null)) as { items?: unknown[]; item?: unknown } | null;
   const items = body?.items ?? (body?.item ? [body.item] : []);
   if (items.length === 0 || items.length > 2000) return NextResponse.json({ error: 'invalid_items' }, { status: 400 });
 
   // Validate each item
-  const { valid, errors } = validateItems(g.table, items);
-  if (errors.length > 0) {
-    return NextResponse.json({ error: 'validation_failed', details: errors }, { status: 400 });
-  }
-
-  for (const i of valid) {
-    const needsName = g.table === 'accounts' || g.table === 'campaigns' || g.table === 'email_templates';
-    if (typeof i.id !== 'string' || !i.id || (needsName && !String(i.name ?? '').trim())) {
-      return NextResponse.json({ error: 'invalid_item' }, { status: 400 });
-    }
-  }
-  return out(await upsert(g.table, valid, new URL(req.url).searchParams.get('ignore') === '1'));
-}
-
-export async function PATCH(req: Request, ctx: Ctx) {
-  const g = await guard(req, ctx, true);
-  if (g instanceof NextResponse) return g;
-  const body = (await req.json().catch(() => null)) as Parameters<typeof patch>[1] | null;
-  if (!body) return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
-
-  // Validate patch fields if a patch object is provided
-  if (body.patch) {
-    const validator = VALIDATORS[g.table];
-    if (validator) {
-      const result = validator(body.patch);
+  const validator = VALIDATORS[table];
+  if (validator) {
+    const errors: { index: number; message: string }[] = [];
+    items.forEach((item, index) => {
+      const result = validator(item);
       if (!result.success) {
         const zodError = result.error as { issues?: Array<{ message: string }> };
-        return NextResponse.json(
-          { error: 'validation_failed', details: zodError.issues?.map((i) => i.message).join(', ') },
-          { status: 400 },
-        );
+        errors.push({ index, message: zodError.issues?.map((i) => i.message).join(', ') || 'Invalid item' });
       }
+    });
+    if (errors.length > 0) {
+      return NextResponse.json({ error: 'validation_failed', details: errors }, { status: 400 });
     }
   }
 
-  return out(await patch(g.table, body));
+  const now = new Date().toISOString();
+  const results: { saved: number; errors: string[] } = { saved: 0, errors: [] };
+
+  for (const item of items) {
+    try {
+      const data: Record<string, unknown> = { ...(item as Record<string, unknown>) };
+      data.updatedAt = now;
+      if (!data.createdAt) data.createdAt = now;
+      data.userId = session.userId;
+
+      // Remove id if empty (Prisma will generate)
+      if (!data.id) delete data.id;
+
+      await (prisma as any)[modelInfo.model].create({ data });
+      results.saved++;
+    } catch (e: any) {
+      results.errors.push(e.message);
+    }
+  }
+
+  if (results.errors.length > 0) {
+    return NextResponse.json({ error: 'partial_save', saved: results.saved, errors: results.errors }, { status: 500 });
+  }
+  return NextResponse.json({ saved: results.saved });
 }
 
-export async function DELETE(req: Request, ctx: Ctx) {
-  const g = await guard(req, ctx, true);
-  if (g instanceof NextResponse) return g;
-  return out(await remove(g.table, new URL(req.url).searchParams.get('id') ?? ''));
+export async function PATCH(req: Request, ctx: { params: Promise<{ table: string }> }) {
+  const session = await auth(req);
+  if (session instanceof NextResponse) return session;
+  const { table } = await ctx.params;
+  const modelInfo = MODEL_MAP[table];
+  if (!modelInfo) return NextResponse.json({ error: 'unknown_table' }, { status: 404 });
+
+  const body = (await req.json().catch(() => null)) as { ids?: string[]; patch?: Record<string, unknown> } | null;
+  if (!body || !body.ids || !body.patch) return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
+
+  const validator = VALIDATORS[table];
+  if (validator && body.patch) {
+    const result = validator(body.patch);
+    if (!result.success) {
+      const zodError = result.error as { issues?: Array<{ message: string }> };
+      return NextResponse.json(
+        { error: 'validation_failed', details: zodError.issues?.map((i) => i.message).join(', ') },
+        { status: 400 },
+      );
+    }
+  }
+
+  const data: Record<string, unknown> = { ...body.patch, updatedAt: new Date().toISOString() };
+  delete data.id;
+  delete data.createdAt;
+
+  let updated = 0;
+  for (const id of body.ids) {
+    try {
+      await (prisma as any)[modelInfo.model].update({ where: { id }, data });
+      updated++;
+    } catch {
+      /* skip individual failures */
+    }
+  }
+  return NextResponse.json({ ok: true, updated });
+}
+
+export async function DELETE(req: Request, ctx: { params: Promise<{ table: string }> }) {
+  const session = await auth(req);
+  if (session instanceof NextResponse) return session;
+  const { table } = await ctx.params;
+  const modelInfo = MODEL_MAP[table];
+  if (!modelInfo) return NextResponse.json({ error: 'unknown_table' }, { status: 404 });
+
+  const url = new URL(req.url);
+  const id = url.searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'bad_id' }, { status: 400 });
+
+  try {
+    await (prisma as any)[modelInfo.model].delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: 'delete_failed' }, { status: 500 });
+  }
 }

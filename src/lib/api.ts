@@ -2,15 +2,6 @@
 
 import { toast } from 'sonner';
 
-function code(): string {
-  let c = localStorage.getItem('sales-os-access') ?? '';
-  if (!c) {
-    c = window.prompt('Sales OS access code') ?? '';
-    if (c) localStorage.setItem('sales-os-access', c);
-  }
-  return c;
-}
-
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -30,18 +21,14 @@ export async function dbCall<T = Record<string, unknown>>(
     fetch(url, {
       method,
       cache: 'no-store',
-      headers: { 'Content-Type': 'application/json', 'x-access-code': code() },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   let r = await call();
   if (r.status === 401) {
-    localStorage.removeItem('sales-os-access');
-    r = await call();
-    if (r.status === 401) {
-      localStorage.removeItem('sales-os-access');
-      if (!silent) toast.error('Session expired. Please enter your access code again.');
-      throw new ApiError('Unauthorized', 401);
-    }
+    if (!silent) toast.error('Session expired. Please sign in again.');
+    throw new ApiError('Unauthorized', 401);
   }
   const j = (await r.json().catch(() => ({}))) as T & { error?: string };
   if (!r.ok) {

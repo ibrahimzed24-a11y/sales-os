@@ -7,7 +7,7 @@ export function GET() {
     status: 'ok',
     app: 'sales-os',
     time: new Date().toISOString(),
-    database: process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY ? 'supabase' : 'local-store',
-    protected: !!process.env.ACCESS_CODE,
+    database: process.env.DATABASE_URL ? 'postgresql' : 'local-only',
+    auth: !!process.env.JWT_SECRET,
   });
 }
