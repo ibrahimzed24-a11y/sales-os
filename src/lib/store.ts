@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Entities, EntityKey, Settings, StageConfig } from '@/types/sales-os';
 import { buildSeed } from '@/lib/seed';
+import { dbCall } from '@/lib/api';
 
 export const DEFAULT_STAGES: StageConfig[] = [
   { id: 'lead_in', label: 'Lead In', probability: 10 },
@@ -35,6 +36,7 @@ const DEFAULT_SETTINGS: Settings = {
 interface State extends Entities {
   settings: Settings;
   seeded: boolean;
+  dbVersion: number;
   upsert: <K extends EntityKey>(key: K, item: Entities[K][number]) => void;
   upsertMany: <K extends EntityKey>(key: K, items: Entities[K]) => void;
   remove: (key: EntityKey, id: string) => void;
@@ -50,6 +52,7 @@ export const useStore = create<State>()(
       ...EMPTY,
       settings: DEFAULT_SETTINGS,
       seeded: false,
+      dbVersion: 0,
       upsert: (key, item) =>
         set((s) => {
           const list = s[key] as unknown as { id: string }[];
@@ -100,7 +103,7 @@ export const useUi = create<UiState>()((set) => ({
 
 
 // --- Cloud sync (Supabase via /api/state). Falls back to browser-only storage when the API is not configured. ---
-const SYNC_KEYS = ['accounts', 'contacts', 'deals', 'activities', 'products', 'quotes', 'playbooks'] as const;
+const SYNC_KEYS = ['deals', 'activities', 'products', 'quotes', 'playbooks'] as const;
 
 function snapshot() {
   const s = useStore.getState();
@@ -144,7 +147,13 @@ if (typeof window !== 'undefined') {
     .then((r) => r.json())
     .then((res: { configured?: boolean; data?: Record<string, unknown> | null }) => {
       if (!res.configured) return;
-      if (res.data && Array.isArray(res.data.contacts)) useStore.setState(res.data as unknown as Partial<State>);
+      if (res.data && Array.isArray(res.data.deals)) {
+        const rest = { ...res.data };
+        delete rest.contacts;
+        delete rest.accounts;
+        useStore.setState(rest as unknown as Partial<State>);
+      }
+      void refreshDirectory();
       if (!('error' in res)) {
         ready = true;
         if (!res.data) push();
@@ -152,4 +161,46 @@ if (typeof window !== 'undefined') {
     })
     .catch(() => undefined);
   useStore.subscribe(push);
+}
+
+
+// --- Contacts and accounts live in their own relational tables; the store keeps a cache for dropdowns and the command palette. ---
+export async function refreshDirectory(): Promise<void> {
+  try {
+    const load = async (t: string) => {
+      const out: unknown[] = [];
+      for (let p = 1; p <= 10; p++) {
+        const r = await dbCall<{ rows: unknown[]; total: number }>('GET', '/api/db/' + t + '?all=1&sort=created_at&dir=asc&page=' + p);
+        out.push(...r.rows);
+        if (r.rows.length < 1000) break;
+      }
+      return out;
+    };
+    const [accounts, contacts] = await Promise.all([load('accounts'), load('contacts')]);
+    useStore.setState({ accounts, contacts } as unknown as Partial<State>);
+  } catch {
+    /* keep the cached copy */
+  }
+}
+
+if (typeof window !== 'undefined') {
+  const base = useStore.getState();
+  const bump = () => useStore.setState((s) => ({ dbVersion: s.dbVersion + 1 }));
+  const mirror = (key: string, items: unknown[]) => {
+    if (key === 'contacts' || key === 'accounts') void dbCall('POST', '/api/db/' + key, { items }).then(bump).catch(() => undefined);
+  };
+  useStore.setState({
+    upsert: ((key: EntityKey, item: unknown) => {
+      base.upsert(key, item as never);
+      mirror(key, [item]);
+    }) as State['upsert'],
+    upsertMany: ((key: EntityKey, items: unknown[]) => {
+      base.upsertMany(key, items as never);
+      mirror(key, items);
+    }) as State['upsertMany'],
+    remove: ((key: EntityKey, id: string) => {
+      base.remove(key, id);
+      if (key === 'contacts' || key === 'accounts') void dbCall('DELETE', '/api/db/' + key + '?id=' + encodeURIComponent(id)).then(bump).catch(() => undefined);
+    }) as State['remove'],
+  });
 }
