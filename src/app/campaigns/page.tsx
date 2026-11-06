@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react';
 import { cn, fmtDate, uid } from '@/lib/utils';
 import { Badge, Button, Card, Drawer, Empty, FormModal, inputCls, PageHeader } from '@/components/ui';
 import { LEAD_STATUSES, REPS, SOURCES } from '@/components/forms';
-import { gmailLink, Pager, renderTpl, useDebounced, useList } from '@/components/data';
+import { Pager, useSender, webmailLink, renderTpl, useDebounced, useList } from '@/components/data';
 import { dbCall } from '@/lib/api';
 import type { Contact } from '@/types/sales-os';
 
@@ -33,6 +33,7 @@ function CampaignDrawer({ c, templates, onClose, onEdit, onChanged }: { c: Campa
   const [busy, setBusy] = useState(false);
   const [tick, setTick] = useState(0);
   const tpl = templates.find((t) => t.id === c.templateId);
+  const sender = useSender();
 
   useEffect(() => {
     const ap = new URLSearchParams({ ...audParams(c.audience ?? {}), hasEmail: '1', pageSize: '1' }).toString();
@@ -77,6 +78,7 @@ function CampaignDrawer({ c, templates, onClose, onEdit, onChanged }: { c: Campa
     <Drawer title={c.name} onClose={onClose}>
       <div className="flex items-center gap-2 text-sm"><Badge tone={tone(c.status)}>{c.status}</Badge><span className="text-muted">Created {fmtDate(c.createdAt)}</span></div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+        <p>From: {sender}</p>
         <p>Template: {tpl?.name ?? 'not set'}</p>
         <p>Daily limit: {c.dailyLimit}</p>
         <p>Audience (with email): {info.audience.toLocaleString()}</p>
@@ -86,6 +88,7 @@ function CampaignDrawer({ c, templates, onClose, onEdit, onChanged }: { c: Campa
       </div>
       {tpl && sample && (
         <div className="mt-4 rounded border border-line p-3 text-sm">
+          <p className="text-xs text-muted">From: {sender}</p>
           <p className="text-xs text-muted">Preview for {sample.firstName} {sample.lastName}</p>
           <p className="font-medium">{renderTpl(c.subject || tpl.subject, sample, sample.accountName)}</p>
           <p className="whitespace-pre-wrap text-muted">{renderTpl(tpl.body, sample, sample.accountName)}</p>
@@ -99,7 +102,7 @@ function CampaignDrawer({ c, templates, onClose, onEdit, onChanged }: { c: Campa
       </div>
       {msg && <p className="mt-2 text-sm">{msg}</p>}
       <p className="mt-4 rounded border border-line p-3 text-xs text-muted">
-        Sending is not enabled in this app. Campaigns stay draft/ready and nothing is emailed. Prepared rows appear in Email Logs, where each one can be opened as a Gmail compose window for manual review. Automatic Gmail sending needs a Google OAuth connection first.
+        Sending is not enabled in this app. Campaigns stay draft/ready and nothing is emailed. Prepared rows appear in Email Logs, where each one can be opened as a Hostinger Webmail compose window and sent manually from {sender}. Log in to that mailbox in Hostinger Webmail first.
       </p>
     </Drawer>
   );
@@ -117,6 +120,7 @@ export default function CampaignsPage() {
   const [pageSize, setPageSize] = useState(50);
   const dq = useDebounced(lq);
 
+  const sender = useSender();
   const camps = useList<Campaign>('campaigns', { all: '1' });
   const tpls = useList<Template>('email_templates', { all: '1' });
   const lp: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
@@ -151,7 +155,7 @@ export default function CampaignsPage() {
     <>
       <PageHeader
         title="Campaigns"
-        subtitle="Plan campaigns, templates and email logs. Nothing is sent from here."
+        subtitle={'Plan campaigns, templates and email logs. Nothing is sent from here. Default From: ' + sender}
         actions={
           <>
             {tab === 'campaigns' && <Button onClick={() => setEditC('new')}><Plus size={14} /> New campaign</Button>}
@@ -159,6 +163,7 @@ export default function CampaignsPage() {
           </>
         }
       />
+      <p className="mb-2 text-xs text-muted">Default sender (From): <span className="font-medium text-fg">{sender}</span> · manual sending via Hostinger Webmail</p>
       <div className="mb-3 flex gap-2">
         {(['campaigns', 'templates', 'logs'] as const).map((t) => (
           <Button key={t} variant={tab === t ? 'primary' : 'outline'} onClick={() => setTab(t)}>{t === 'logs' ? 'Email Logs' : t === 'templates' ? 'Templates' : 'Campaigns'}</Button>
@@ -219,17 +224,18 @@ export default function CampaignsPage() {
           <Card className="overflow-x-auto">
             {logs.rows.length === 0 ? <Empty text={logs.loading ? 'Loading...' : 'No email logs'} /> : (
               <table className="w-full text-sm">
-                <thead className="text-left text-xs text-muted"><tr>{['To', 'Subject', 'Campaign', 'Status', 'Prepared', 'Actions'].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}</tr></thead>
+                <thead className="text-left text-xs text-muted"><tr>{['From', 'To', 'Subject', 'Campaign', 'Status', 'Prepared', 'Actions'].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}</tr></thead>
                 <tbody>
                   {logs.rows.map((l) => (
                     <tr key={l.id} className="border-t border-line">
+                      <td className="px-3 py-2">{sender}</td>
                       <td className="px-3 py-2">{l.toEmail}</td>
                       <td className="px-3 py-2">{l.subject}</td>
                       <td className="px-3 py-2">{cName(l.campaignId)}</td>
                       <td className="px-3 py-2"><Badge tone={tone(l.status)}>{l.status}</Badge></td>
                       <td className="px-3 py-2">{fmtDate(l.preparedAt)}</td>
                       <td className="flex gap-2 px-3 py-2 text-xs">
-                        <a className="text-brand underline" target="_blank" rel="noreferrer" href={gmailLink(l.toEmail, l.subject, l.body)}>Open in Gmail</a>
+                        <a className="text-brand underline" target="_blank" rel="noreferrer" href={webmailLink(l.toEmail, l.subject, l.body)}>Open in Hostinger Webmail</a>
                         {l.status !== 'sent' && <button className="underline" onClick={() => void markLog(l, 'sent')}>Mark sent</button>}
                         {l.status === 'prepared' && <button className="underline" onClick={() => void markLog(l, 'skipped')}>Skip</button>}
                       </td>
@@ -249,7 +255,7 @@ export default function CampaignsPage() {
           title={ec ? 'Edit campaign' : 'New campaign'}
           initial={{ name: ec?.name ?? '', subject: ec?.subject ?? '', templateId: ec?.templateId ?? '', leadStatus: ec?.audience?.leadStatus ?? '', source: ec?.audience?.source ?? '', owner: ec?.audience?.owner ?? '', tag: ec?.audience?.tag ?? '', dailyLimit: String(ec?.dailyLimit ?? 40), notes: ec?.notes ?? '' }}
           fields={[
-            { key: 'name', label: 'Campaign name', required: true },
+            { key: 'name', label: 'Campaign name (From: ' + sender + ')', required: true },
             { key: 'subject', label: 'Subject (optional, overrides template)' },
             { key: 'templateId', label: 'Email template', type: 'select', options: opts(tpls.rows.map((t) => t.id), 'Choose...').map((o) => ({ value: o.value, label: tpls.rows.find((t) => t.id === o.value)?.name ?? o.label })) },
             { key: 'leadStatus', label: 'Audience: status', type: 'select', options: opts(LEAD_STATUSES) },
@@ -269,7 +275,7 @@ export default function CampaignsPage() {
           initial={{ name: et?.name ?? '', subject: et?.subject ?? '', body: et?.body ?? '' }}
           fields={[
             { key: 'name', label: 'Template name', required: true },
-            { key: 'subject', label: 'Subject (supports {{first_name}}, {{company}})' },
+            { key: 'subject', label: 'Subject (supports {{first_name}}, {{company}}) · From: ' + sender },
             { key: 'body', label: 'Body (supports {{first_name}}, {{last_name}}, {{company}}, {{role}})', type: 'textarea' },
           ]}
           onSubmit={(v) => void saveT(v)}
