@@ -97,3 +97,36 @@ export const useUi = create<UiState>()((set) => ({
   setQuickAdd: (v) => set({ quickAdd: v }),
   setFocus: (v) => set({ focus: v }),
 }));
+
+
+// --- Cloud sync (Supabase via /api/state). Falls back to browser-only storage when the API is not configured. ---
+const SYNC_KEYS = ['accounts', 'contacts', 'deals', 'activities', 'products', 'quotes', 'playbooks'] as const;
+
+function snapshot() {
+  const s = useStore.getState();
+  const out: Record<string, unknown> = { settings: s.settings, seeded: s.seeded };
+  for (const k of SYNC_KEYS) out[k] = s[k];
+  return out;
+}
+
+if (typeof window !== 'undefined') {
+  let ready = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const push = () => {
+    if (!ready) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      void fetch('/api/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(snapshot()) }).catch(() => undefined);
+    }, 700);
+  };
+  void fetch('/api/state', { cache: 'no-store' })
+    .then((r) => r.json())
+    .then((res: { configured?: boolean; data?: Record<string, unknown> | null }) => {
+      if (!res.configured) return;
+      if (res.data && Array.isArray(res.data.contacts)) useStore.setState(res.data as unknown as Partial<State>);
+      ready = true;
+      if (!res.data) push();
+    })
+    .catch(() => undefined);
+  useStore.subscribe(push);
+}
