@@ -31,7 +31,8 @@ export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const dateOnly = /T00:00:00(\.000)?(Z|\+00:00)$/.test(iso) || /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', ...(dateOnly ? { timeZone: 'UTC' } : {}) });
 }
 
 export function dateInput(iso: string | null | undefined): string {
