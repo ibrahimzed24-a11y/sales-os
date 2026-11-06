@@ -81,12 +81,31 @@ export default function ContactsPage() {
       window.alert('Import failed: the file needs a header row and at least one data row.');
       return;
     }
-    const head = table[0].map((h) => h.trim());
-    if (!head.includes('firstName') && !head.includes('lastName')) {
-      window.alert('Import failed: the CSV needs a firstName or lastName column. Columns found: ' + head.join(', '));
+    const ALIAS: Record<string, string> = {
+      firstname: 'firstName', first: 'firstName', givenname: 'firstName', forename: 'firstName',
+      lastname: 'lastName', last: 'lastName', surname: 'lastName', familyname: 'lastName',
+      name: 'fullName', fullname: 'fullName', contactname: 'fullName',
+      email: 'email', emailaddress: 'email', mail: 'email', workemail: 'email',
+      phone: 'phone', phonenumber: 'phone', mobile: 'phone', telephone: 'phone', tel: 'phone',
+      role: 'role', title: 'role', jobtitle: 'role', position: 'role',
+      account: 'account', company: 'company', companyname: 'company', organization: 'company', organisation: 'company',
+      leadstatus: 'leadStatus', status: 'leadStatus', leadscore: 'leadScore', score: 'leadScore',
+      source: 'source', leadsource: 'source', tags: 'tags', tag: 'tags', owner: 'owner', assignedto: 'owner',
+    };
+    const canon = (h: string) => ALIAS[h.replace(/^\uFEFF/, '').toLowerCase().replace(/[^a-z0-9]/g, '')] ?? h.trim();
+    const head = table[0].map(canon);
+    if (!head.includes('firstName') && !head.includes('lastName') && !head.includes('fullName')) {
+      window.alert('Import failed: the CSV needs a first name, last name or full name column (e.g. First Name, Last Name or Name). Columns found: ' + table[0].map((h) => h.trim()).join(', '));
       return;
     }
-    const col = (row: string[], name: string) => row[head.indexOf(name)]?.trim() ?? '';
+    const col = (row: string[], name: string) => {
+      const i = head.indexOf(name);
+      if (i >= 0) return row[i]?.trim() ?? '';
+      const f = head.indexOf('fullName');
+      if (f < 0 || (name !== 'firstName' && name !== 'lastName')) return '';
+      const parts = (row[f] ?? '').trim().split(/\s+/);
+      return name === 'firstName' ? parts[0] ?? '' : parts.slice(1).join(' ');
+    };
     const now = new Date().toISOString();
     const seen = new Set(contacts.map((c) => c.email.toLowerCase()).filter(Boolean));
     const imported: Contact[] = [];
