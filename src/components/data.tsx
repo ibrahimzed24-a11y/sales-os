@@ -59,8 +59,21 @@ export function renderTpl(s: string, c: { firstName?: string; lastName?: string;
   return s.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k: string) => m[k] ?? '');
 }
 
-export function gmailLink(to: string, subject: string, body: string): string {
-  return 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(to) + '&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+export const DEFAULT_SENDER = 'sales@health.valioz.com';
+const WEBMAIL_URL = 'https://webmail.hostinger.com/';
+
+// Reads SENDER_EMAIL (Vercel env) through /api/sender; falls back to the official address.
+export function useSender(): string {
+  const [sender, setSender] = useState(DEFAULT_SENDER);
+  useEffect(() => {
+    fetch('/api/sender').then((r) => r.json()).then((j: { senderEmail?: string }) => { if (j.senderEmail) setSender(j.senderEmail); }).catch(() => undefined);
+  }, []);
+  return sender;
+}
+
+// Manual sending: opens a compose window in Hostinger Webmail (sign in to the sales mailbox there).
+export function webmailLink(to: string, subject: string, body: string): string {
+  return WEBMAIL_URL + '?_task=mail&_action=compose&_to=' + encodeURIComponent(to) + '&_subject=' + encodeURIComponent(subject) + '&_body=' + encodeURIComponent(body);
 }
 
 type Field = { key: string; label: string; aliases: string[] };
