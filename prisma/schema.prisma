@@ -33,6 +33,8 @@ model Account {
   updatedAt     DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   contacts      Contact[]
 
+  ownerId String? @map("owner_id") @db.Uuid
+
   @@map("accounts")
 }
 
@@ -54,6 +56,8 @@ model Contact {
   createdAt       DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  ownerId String? @map("owner_id") @db.Uuid
+
   @@map("contacts")
 }
 
@@ -64,6 +68,8 @@ model EmailTemplate {
   body      String?
   createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  ownerId String? @map("owner_id") @db.Uuid
 
   @@map("email_templates")
 }
@@ -79,6 +85,8 @@ model Campaign {
   notes      String?
   createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  ownerId String? @map("owner_id") @db.Uuid
 
   @@map("campaigns")
 }
@@ -98,6 +106,8 @@ model EmailLog {
   createdAt      DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  ownerId String? @map("owner_id") @db.Uuid
+
   @@map("email_logs")
 }
 
@@ -111,6 +121,8 @@ model ImportJob {
   report    Json?
   createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  ownerId String? @map("owner_id") @db.Uuid
 
   @@map("import_jobs")
 }
