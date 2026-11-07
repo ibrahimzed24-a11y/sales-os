@@ -13,6 +13,12 @@ function signedIn(req: Request): boolean {
   return !!m && !!verifyToken(m[1]);
 }
 
+function uidOf(req: Request): string | null {
+  const m = (req.headers.get('cookie') ?? '').match(new RegExp('(?:^|; )' + COOKIE_NAME + '=([^;]+)'));
+  const p = m ? verifyToken(m[1]) : null;
+  return p ? p.userId : null;
+}
+
 const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]{2,}$/;
 const STATUSES = ['New', 'Contacted', 'Working', 'Qualified', 'Unqualified'];
 const SOURCES = ['Inbound', 'Outbound', 'Referral', 'Partner'];
@@ -20,7 +26,7 @@ const TIERS = ['Enterprise', 'Mid-Market', 'SMB'];
 const pick = (list: string[], v: string | undefined, d: string) => list.find((x) => x.toLowerCase() === (v ?? '').trim().toLowerCase()) ?? d;
 const numOf = (v: string | undefined) => Number((v ?? '').replace(/[^0-9.-]/g, '')) || 0;
 
-async function importContacts(rows: Row[]) {
+async function importContacts(rows: Row[], uid: string) {
   const skipped: Skip[] = [];
   const skip = (r: Row, reason: string, value = '') => skipped.push({ row: Number(r.row), reason, value });
   const good: { r: Row; email: string; key: string }[] = [];
@@ -39,7 +45,7 @@ async function importContacts(rows: Row[]) {
   }
 
   const emails = good.filter((x) => x.email).map((x) => x.email);
-  const existing = emails.length ? await prisma.contact.findMany({ where: { email: { in: emails, mode: 'insensitive' } }, select: { email: true } }) : [];
+  const existing = emails.length ? await prisma.contact.findMany({ where: { ownerId: uid, email: { in: emails, mode: 'insensitive' } }, select: { email: true } }) : [];
   const haveEmail = new Set(existing.map((x) => (x.email ?? '').toLowerCase()));
   const fresh = good.filter((x) => {
     if (x.email && haveEmail.has(x.email)) { skip(x.r, 'Already exists', x.key); return false; }
@@ -54,7 +60,7 @@ async function importContacts(rows: Row[]) {
   const accId = new Map<string, string>();
   if (names.size) {
     const found = await prisma.account.findMany({
-      where: { OR: Array.from(names.values()).map((n) => ({ name: { equals: n, mode: 'insensitive' as const } })) },
+      where: { ownerId: uid, OR: Array.from(names.values()).map((n) => ({ name: { equals: n, mode: 'insensitive' as const } })) },
       select: { id: true, name: true },
     });
     for (const a of found) accId.set(a.name.toLowerCase(), a.id);
@@ -62,12 +68,13 @@ async function importContacts(rows: Row[]) {
   const toCreate = Array.from(names.entries()).filter(([k]) => !accId.has(k));
   if (toCreate.length) {
     const made = toCreate.map(([k, name]) => ({ k, id: randomUUID(), name }));
-    await prisma.account.createMany({ data: made.map((m) => ({ id: m.id, name: m.name })) });
+    await prisma.account.createMany({ data: made.map((m) => ({ id: m.id, ownerId: uid, name: m.name })) });
     for (const m of made) accId.set(m.k, m.id);
   }
 
   const recs = fresh.map((x) => ({
     id: randomUUID(),
+    ownerId: uid,
     accountId: accId.get((x.r.company ?? '').trim().toLowerCase()) ?? null,
     firstName: (x.r.firstName ?? '').trim(),
     lastName: (x.r.lastName ?? '').trim(),
@@ -94,7 +101,7 @@ async function importContacts(rows: Row[]) {
   return { imported, skipped, accountsCreated: toCreate.length, linked: recs.filter((x) => x.accountId).length };
 }
 
-async function importAccounts(rows: Row[]) {
+async function importAccounts(rows: Row[], uid: string) {
   const skipped: Skip[] = [];
   const skip = (r: Row, reason: string, value = '') => skipped.push({ row: Number(r.row), reason, value });
   const good: { r: Row; key: string; domain: string }[] = [];
@@ -114,7 +121,7 @@ async function importAccounts(rows: Row[]) {
 
   const found = good.length
     ? await prisma.account.findMany({
-        where: { OR: [
+        where: { ownerId: uid, OR: [
           ...good.map((x) => ({ name: { equals: x.r.name.trim(), mode: 'insensitive' as const } })),
           ...good.filter((x) => x.domain).map((x) => ({ domain: { equals: x.domain, mode: 'insensitive' as const } })),
         ] },
@@ -136,6 +143,7 @@ async function importAccounts(rows: Row[]) {
       await prisma.account.createMany({
         data: chunk.map((x) => ({
           id: randomUUID(),
+          ownerId: uid,
           name: x.r.name.trim(),
           domain: x.domain || null,
           industry: (x.r.industry ?? '').trim() || null,
@@ -153,7 +161,8 @@ async function importAccounts(rows: Row[]) {
 }
 
 export async function POST(req: Request) {
-  if (!signedIn(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const uid = uidOf(req);
+  if (!uid) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = (await req.json().catch(() => null)) as
     | { kind?: string; entity?: string; rows?: Row[]; fileName?: string; total?: number; imported?: number; skipped?: number; report?: unknown }
     | null;
@@ -163,6 +172,7 @@ export async function POST(req: Request) {
     if (body.kind === 'job') {
       await prisma.importJob.create({
         data: {
+          ownerId: uid,
           id: 'imp_' + randomUUID().replace(/-/g, '').slice(0, 14),
           entity: body.entity ?? '',
           fileName: body.fileName ?? null,
@@ -175,8 +185,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ saved: true });
     }
     if (!Array.isArray(body.rows) || body.rows.length > 300) return NextResponse.json({ error: 'invalid_rows' }, { status: 400 });
-    if (body.entity === 'contacts') return NextResponse.json(await importContacts(body.rows));
-    if (body.entity === 'accounts') return NextResponse.json(await importAccounts(body.rows));
+    if (body.entity === 'contacts') return NextResponse.json(await importContacts(body.rows, uid));
+    if (body.entity === 'accounts') return NextResponse.json(await importAccounts(body.rows, uid));
     return NextResponse.json({ error: 'invalid_entity' }, { status: 400 });
   } catch (e) {
     console.error('import_failed', e instanceof Error ? e.message.split('\n').pop() : e);
