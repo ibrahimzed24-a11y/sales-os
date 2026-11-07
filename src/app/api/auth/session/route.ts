@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
 import { compare, hash } from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { signToken, verifyToken, COOKIE_NAME } from '@/lib/auth-utils';
@@ -11,12 +10,6 @@ const rateLimit = createRateLimiter();
 
 function ipOf(req: Request) {
   return req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown';
-}
-
-function sameCode(a: string, b: string) {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
 }
 
 function withSession(user: { id: string; email: string; name: string | null; role: string }) {
@@ -56,17 +49,18 @@ export async function POST(req: Request) {
     }
 
     if (body.action === 'signup') {
-      if (!body.name || !email || !body.password) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      const name = (body.name ?? '').trim();
+      if (!name || !email || !body.password) return NextResponse.json({ error: 'Full name, email and password are required' }, { status: 400 });
+      if (name.length > 100) return NextResponse.json({ error: 'Name is too long' }, { status: 400 });
+      if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return NextResponse.json({ error: 'Enter a valid email address' }, { status: 400 });
       if (body.password.length < 8) return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
-      // Single-workspace app: the first account is the admin; after that signup needs the ACCESS_CODE.
+      if (body.password.length > 72) return NextResponse.json({ error: 'Password must be at most 72 characters' }, { status: 400 });
+      // Public registration: the first account is the admin, every later account is a normal REP user.
+      // Each user only ever sees rows stamped with their own owner_id (see /api/db and /api/send-os).
       const count = await prisma.appUser.count();
-      const code = process.env.ACCESS_CODE;
-      if (count > 0 && !(code && body.accessCode && sameCode(body.accessCode, code))) {
-        return NextResponse.json({ error: 'Registration is closed' }, { status: 403 });
-      }
       if (await prisma.appUser.findUnique({ where: { email } })) return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
       const user = await prisma.appUser.create({
-        data: { name: body.name, email, passwordHash: await hash(body.password, 12), role: count === 0 ? 'ADMIN' : 'REP' },
+        data: { name, email, passwordHash: await hash(body.password, 12), role: count === 0 ? 'ADMIN' : 'REP' },
       });
       return withSession(user);
     }
@@ -79,6 +73,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (e) {
+    if ((e as { code?: string })?.code === 'P2002') return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
     console.error('auth_failed', e instanceof Error ? e.message.split('\n').pop() : e);
     return NextResponse.json({ error: 'Service unavailable, try again' }, { status: 503 });
   }
