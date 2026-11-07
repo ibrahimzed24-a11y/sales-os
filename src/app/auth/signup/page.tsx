@@ -33,6 +33,13 @@ export default function SignUpPage() {
         setLoading(false);
         return;
       }
+      try {
+        // A brand-new account starts with an empty browser cache.
+        localStorage.removeItem('sales-os-store');
+        localStorage.setItem('sales-os-uid', data.user?.id ?? '');
+      } catch {
+        /* ignore */
+      }
       toast.success('Account created');
       router.push('/');
       router.refresh();
@@ -50,16 +57,17 @@ export default function SignUpPage() {
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div className="space-y-2">
             <label className="block text-sm text-muted">Full name</label>
-            <input name="name" type="text" required className={inputCls} placeholder="Jane Doe" />
+            <input name="name" type="text" required maxLength={100} autoComplete="name" className={inputCls} placeholder="Jane Doe" />
           </div>
           <div className="space-y-2">
             <label className="block text-sm text-muted">Email</label>
-            <input name="email" type="email" required className={inputCls} placeholder="you@company.com" />
+            <input name="email" type="email" required autoComplete="email" className={inputCls} placeholder="you@company.com" />
           </div>
           <div className="space-y-2">
             <label className="block text-sm text-muted">Password</label>
-            <input name="password" type="password" required className={inputCls} placeholder="••••••••" />
+            <input name="password" type="password" required minLength={8} maxLength={72} autoComplete="new-password" className={inputCls} placeholder="••••••••" />
           </div>
+          <p className="text-xs text-muted">Use at least 8 characters for your password.</p>
           {error && (
             <div className="flex items-center gap-2 rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-500 border border-red-500/20">
               <AlertTriangle size={14} /> {error}
