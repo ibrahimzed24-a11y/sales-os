@@ -10,6 +10,7 @@ import {
   CheckSquare,
   FileText,
   Kanban,
+  LogOut,
   LayoutDashboard,
   Mail,
   Menu,
@@ -47,10 +48,24 @@ export function Shell({ children }: { children: ReactNode }) {
   const { quickAdd, setQuickAdd, setPalette } = useUi();
 
   useEffect(() => {
-    Promise.resolve(useStore.persist.rehydrate()).then(() => {
+    (async () => {
+      // The browser cache belongs to one account: drop it when a different user signs in on this browser.
+      try {
+        const r = await fetch('/api/auth/session', { cache: 'no-store', credentials: 'include' });
+        const j = (await r.json().catch(() => ({}))) as { user?: { id?: string } };
+        const id = j.user?.id;
+        const prev = localStorage.getItem('sales-os-uid');
+        if (id) {
+          if (prev && prev !== id) localStorage.removeItem('sales-os-store');
+          localStorage.setItem('sales-os-uid', id);
+        }
+      } catch {
+        /* keep the cached copy */
+      }
+      await Promise.resolve(useStore.persist.rehydrate());
       if (!useStore.getState().seeded) useStore.getState().clearAll();
       setReady(true);
-    });
+    })();
   }, []);
 
   useEffect(() => {
@@ -102,6 +117,15 @@ export function Shell({ children }: { children: ReactNode }) {
         </nav>
         <div className="mt-auto pt-4 border-t border-line">
           <p className="px-2 text-xs text-muted">Press Ctrl/Cmd+K</p>
+          <button
+            onClick={async () => {
+              await fetch('/api/auth/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'signout' }) }).catch(() => undefined);
+              window.location.href = '/auth/signin';
+            }}
+            className="mt-2 flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted hover:bg-raised hover:text-fg"
+          >
+            <LogOut size={16} /> Sign out
+          </button>
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
