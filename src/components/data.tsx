@@ -6,6 +6,7 @@ import { Button, inputCls, Modal } from '@/components/ui';
 import { dbCall } from '@/lib/api';
 import { refreshDirectory } from '@/lib/store';
 import { REPS } from '@/components/forms';
+export { WorkbookImport as ImportWizard } from '@/components/workbook-import';
 
 export function useDebounced<T>(v: T, ms = 350): T {
   const [d, setD] = useState(v);
@@ -118,7 +119,8 @@ function detect(fields: Field[], head: string[]): Record<string, number> {
 type Skip = { row: number; reason: string; value: string };
 type Result = { total: number; imported: number; skipped: Skip[]; created: number; linked: number; stopped: boolean };
 
-export function ImportWizard({ entity, onClose, onDone }: { entity: 'contacts' | 'accounts'; onClose: () => void; onDone: () => void }) {
+// Kept for reference; Accounts and Contacts now use WorkbookImport (Excel + CSV).
+export function LegacyCsvImportWizard({ entity, onClose, onDone }: { entity: 'contacts' | 'accounts'; onClose: () => void; onDone: () => void }) {
   const fields = entity === 'contacts' ? CONTACT_FIELDS : ACCOUNT_FIELDS;
   const [fileName, setFileName] = useState('');
   const [table, setTable] = useState<string[][] | null>(null);
