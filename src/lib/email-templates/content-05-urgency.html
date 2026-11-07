@@ -1,0 +1,99 @@
+<!-- CLINIC-BRANDED CONTENT BLOCK — Urgency / Last Chance -->
+<tr>
+  <td class="pad24" align="left" style="padding:32px 32px 0 32px;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+      <tr>
+        <td align="left" style="padding-bottom:10px;">
+          {{#if clinic_logo_url}}
+          <a href="{{clinic_site_url}}" target="_blank" style="text-decoration:none;">
+            <img class="logo-c" src="{{clinic_logo_url}}" alt="{{clinic_name}}" width="150" height="40"
+                 style="width:150px; height:auto; display:block; border:0;">
+          </a>
+          {{/if}}
+          <div class="h-sans" style="font-size:13px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:{{valioz_coral}};">
+            Week 4 · Limited spots
+          </div>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+  <td class="pad24" align="left" style="padding:0 32px 20px 32px;">
+    <h1 class="h-serif" style="font-family:'EB Garamond',Georgia,'Times New Roman',serif; font-size:26px; line-height:1.25; font-weight:700; color:{{clinic_primary}}; margin:0;">
+      {{headline}}
+    </h1>
+  </td>
+</tr>
+<tr>
+  <td class="pad24" align="left" style="padding:0 32px 10px 32px;">
+    <div class="h-sans" style="font-size:16px; line-height:1.6; color:{{clinic_text}}; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      {{body_copy_urgency_problem}}
+    </div>
+  </td>
+</tr>
+<tr>
+  <td class="pad24" align="left" style="padding:0 32px 24px 32px;">
+    <div class="h-sans" style="font-size:16px; line-height:1.6; color:{{clinic_text}}; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      {{body_copy_urgency_agitation}}
+    </div>
+  </td>
+</tr>
+<tr>
+  <td class="pad24" align="left" style="padding:0 32px 24px 32px;">
+    <div class="h-sans" style="font-size:16px; line-height:1.6; color:{{clinic_text}}; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      {{body_copy_urgency_solution}}
+    </div>
+  </td>
+</tr>
+<tr>
+  <td class="pad24" align="center" style="padding:0 32px 24px 32px;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"
+           style="background:{{valioz_mist}}; border-left:4px solid {{valioz_coral}}; border-radius:10px; padding:16px;">
+      <tr>
+        <td align="left">
+          <div class="h-sans" style="font-size:13px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:{{valioz_coral}}; margin-bottom:6px;">
+            {{proof_label}}
+          </div>
+          <div class="h-serif" style="font-size:18px; line-height:1.4; color:{{clinic_primary}}; margin:0;">
+            {{stat_copy}}
+          </div>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+  <td class="pad24" align="center" style="padding:0 32px 32px 32px;">
+    <table class="btn" role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+      <tr>
+        <td align="center">
+          <!--[if mso]>
+          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+                       href="{{cta_link}}" style="height:52px; v-text-anchor:middle; width:240px;" arcsize="14%"
+                       strokecolor="{{valioz_coral}}" fillcolor="{{valioz_coral}}">
+            <v:textbox inset="0,0,0,0"><center>
+          <![endif]-->
+          <a href="{{cta_link}}" target="_blank"
+             style="background:{{valioz_coral}}; color:{{valioz_white}}; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+                     font-size:16px; font-weight:700; line-height:52px; width:240px; display:inline-block;
+                     text-align:center; border-radius:12px; mso-hide:all; text-decoration:none;
+                     box-shadow:0 4px 14px rgba(251,95,98,0.28);">
+            {{cta_text}}
+          </a>
+          <!--[if mso]>
+            </center></v:textbox>
+          </v:roundrect>
+          <![endif]-->
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+  <td class="pad24" align="left" style="padding:0 32px 32px 32px; border-top:1px solid {{valioz_line}};">
+    <div class="h-sans" style="font-size:14px; line-height:1.5; color:{{valioz_muted}}; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      P.S.&nbsp;<strong>{{ps_copy}}</strong>
+    </div>
+  </td>
+</tr>
