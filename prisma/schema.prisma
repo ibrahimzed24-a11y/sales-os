@@ -10,7 +10,7 @@ datasource db {
 
 enum Tier {
   Enterprise
-  MidMarket
+  Mid_Market
   SMB
 }
 

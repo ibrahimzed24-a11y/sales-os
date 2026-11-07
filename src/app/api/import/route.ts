@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/auth-utils';
+import { uid } from '@/lib/utils';
 import type { LeadSource, LeadStatus } from '@/types/sales-os';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,6 @@ const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]{2,}$/;
 const STATUSES = ['New', 'Contacted', 'Working', 'Qualified', 'Unqualified'];
 const SOURCES = ['Inbound', 'Outbound', 'Referral', 'Partner'];
 const TIERS = ['Enterprise', 'Mid-Market', 'SMB'];
-const uid = (p: string) => p + '_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 const pick = (list: string[], v: string | undefined, d: string) => list.find((x) => x.toLowerCase() === (v ?? '').trim().toLowerCase()) ?? d;
 const numOf = (v: string | undefined) => Number((v ?? '').replace(/[^0-9.-]/g, '')) || 0;
 

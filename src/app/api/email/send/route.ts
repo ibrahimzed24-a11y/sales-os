@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { verifyToken } from '@/lib/auth-utils';
 
 const FROM_EMAIL = process.env.SENDER_EMAIL || 'sales@health.valioz.com';
 
@@ -8,7 +9,19 @@ function getResend(): Resend | null {
   return new Resend(process.env.RESEND_API_KEY);
 }
 
+function getSession(req: Request): { userId: string; email: string; role: string } | null {
+  const cookie = req.headers.get('cookie') ?? '';
+  const match = cookie.match(new RegExp(`(?:^|; )sales-os-session=([^;]+)`));
+  if (!match) return null;
+  return verifyToken(match[1]);
+}
+
 export async function POST(req: Request) {
+  const session = getSession(req);
+  if (!session) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
   const resend = getResend();
   if (!resend) {
     return NextResponse.json(

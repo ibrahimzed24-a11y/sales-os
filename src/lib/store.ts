@@ -39,8 +39,6 @@ interface State extends Entities {
   settings: Settings;
   seeded: boolean;
   dbVersion: number;
-  syncing: boolean;
-  syncError: string | null;
   upsert: <K extends EntityKey>(key: K, item: Entities[K][number]) => void;
   upsertMany: <K extends EntityKey>(key: K, items: Entities[K]) => void;
   remove: (key: EntityKey, id: string) => void;
@@ -48,9 +46,6 @@ interface State extends Entities {
   seedDemo: () => void;
   clearAll: () => void;
   importAll: (data: Entities) => void;
-  // Cloud sync
-  syncToCloud: () => Promise<void>;
-  syncFromCloud: () => Promise<void>;
 }
 
 export const useStore = create<State>()(
@@ -60,8 +55,6 @@ export const useStore = create<State>()(
       settings: DEFAULT_SETTINGS,
       seeded: false,
       dbVersion: 0,
-      syncing: false,
-      syncError: null,
       upsert: (key, item) =>
         set((s) => {
           const list = s[key] as unknown as { id: string }[];
@@ -75,8 +68,10 @@ export const useStore = create<State>()(
         set((s) => {
           const list = s[key] as unknown as { id: string }[];
           const incoming = items as unknown as { id: string }[];
-          const next = [...list, ...incoming];
-          return { [key]: next } as unknown as Partial<State>;
+          const byId = new Map<string, { id: string }>();
+          for (const x of list) byId.set(x.id, x);
+          for (const x of incoming) byId.set(x.id, x); // incoming replaces existing by id
+          return { [key]: [...byId.values()] } as unknown as Partial<State>;
         }),
       remove: (key, id) =>
         set((s) => {
@@ -87,51 +82,6 @@ export const useStore = create<State>()(
       seedDemo: () => set(() => ({ ...buildSeed(), seeded: true })),
       clearAll: () => set(() => ({ ...EMPTY, seeded: true })),
       importAll: (data) => set(() => ({ ...data, seeded: true })),
-
-      // --- Cloud sync ---
-      syncToCloud: async () => {
-        const s = get();
-        set({ syncing: true, syncError: null });
-        try {
-          const snapshot = {
-            settings: s.settings,
-            deals: s.deals,
-            activities: s.activities,
-            products: s.products,
-            quotes: s.quotes,
-            playbooks: s.playbooks,
-          };
-          await dbCall('PUT', '/api/state', JSON.stringify(snapshot), { silent: true });
-          // Don't throw on sync failure - local store is the source of truth
-        } catch (e) {
-          set({ syncError: e instanceof Error ? e.message : 'Sync failed' });
-          // Silent - local data is still available
-        } finally {
-          set({ syncing: false });
-        }
-      },
-
-      syncFromCloud: async () => {
-        set({ syncing: true, syncError: null });
-        try {
-          const res = await dbCall<{ configured?: boolean; data?: Record<string, unknown> | null }>('GET', '/api/state', undefined, { silent: true });
-          if (!res.configured) return;
-          if (res.data && Array.isArray(res.data.deals)) {
-            const rest = { ...res.data };
-            delete rest.contacts;
-            delete rest.accounts;
-            set((s) => ({
-              ...rest,
-              accounts: s.accounts, // keep local accounts/contacts unless explicitly synced
-              contacts: s.contacts,
-            } as unknown as Partial<State>));
-          }
-        } catch (e) {
-          set({ syncError: e instanceof Error ? e.message : 'Sync failed' });
-        } finally {
-          set({ syncing: false });
-        }
-      },
     }),
     { name: 'sales-os-store', version: 2, skipHydration: true },
   ),
@@ -204,26 +154,5 @@ if (typeof window !== 'undefined') {
         void dbCall('DELETE', '/api/db/' + key + '?id=' + encodeURIComponent(id), undefined, { silent: true }).then(bump).catch(() => undefined);
       }
     }) as State['remove'],
-  });
-
-  // Periodic cloud sync (every 30 seconds when cloud is configured)
-  let syncTimer: ReturnType<typeof setInterval> | undefined;
-  function startSyncTimer() {
-    if (syncTimer) clearInterval(syncTimer);
-    syncTimer = setInterval(() => {
-      void useStore.getState().syncToCloud();
-    }, 30000);
-  }
-  // Start sync timer after hydration
-  setTimeout(() => {
-    void useStore.getState().syncFromCloud();
-    startSyncTimer();
-  }, 1000);
-
-  // Sync on visibility change (when user returns to tab)
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      void useStore.getState().syncFromCloud();
-    }
   });
 }

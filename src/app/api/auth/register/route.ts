@@ -1,8 +1,23 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hash } from 'bcryptjs';
+import { createRateLimiter } from '@/lib/rate-limit';
+
+const rateLimit = createRateLimiter();
+
+function ipOf(req: Request) {
+  return req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown';
+}
 
 export async function POST(req: Request) {
+  const rl = rateLimit(ipOf(req));
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'rate_limited', message: 'Too many requests. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+    );
+  }
+
   try {
     const { name, email, password } = await req.json();
     if (!name || !email || !password) {

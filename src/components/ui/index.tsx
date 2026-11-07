@@ -180,41 +180,47 @@ export function FormModal({
         }}
         className="space-y-3"
       >
-        {fields.map((f) => (
-          <label key={f.key} className="block text-sm">
-            <span className="mb-1 block text-muted">
-              {f.label}
-              {f.required ? ' *' : ''}
-            </span>
-            {f.type === 'textarea' ? (
-              <textarea
-                className={inputCls}
-                rows={4}
-                value={values[f.key] ?? ''}
-                onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
-              />
-            ) : f.type === 'select' ? (
-              <select
-                className={inputCls}
-                value={values[f.key] ?? ''}
-                onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
-              >
-                {(f.options ?? []).map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                className={inputCls}
-                type={f.type ?? 'text'}
-                value={values[f.key] ?? ''}
-                onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
-              />
-            )}
-          </label>
-        ))}
+        {fields.map((f, i) => {
+          const inputId = `field-${i}-${f.key}`;
+          return (
+            <label key={f.key} className="block text-sm" htmlFor={inputId}>
+              <span className="mb-1 block text-muted">
+                {f.label}
+                {f.required ? ' *' : ''}
+              </span>
+              {f.type === 'textarea' ? (
+                <textarea
+                  id={inputId}
+                  className={inputCls}
+                  rows={4}
+                  value={values[f.key] ?? ''}
+                  onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
+                />
+              ) : f.type === 'select' ? (
+                <select
+                  id={inputId}
+                  className={inputCls}
+                  value={values[f.key] ?? ''}
+                  onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
+                >
+                  {(f.options ?? []).map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  id={inputId}
+                  className={inputCls}
+                  type={f.type ?? 'text'}
+                  value={values[f.key] ?? ''}
+                  onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
+                />
+              )}
+            </label>
+          );
+        })}
         {error && <p className="text-sm text-red-500">{error}</p>}
         <div className="flex items-center justify-between pt-2">
           <div>

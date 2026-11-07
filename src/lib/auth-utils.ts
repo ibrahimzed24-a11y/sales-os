@@ -1,6 +1,10 @@
 import { sign, verify } from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+const JWT_SECRET_ENV = process.env.JWT_SECRET;
+if (!JWT_SECRET_ENV || JWT_SECRET_ENV === 'fallback-secret-change-in-production') {
+  throw new Error('JWT_SECRET is required. Set it in .env.local or your deploy env.');
+}
+const JWT_SECRET = JWT_SECRET_ENV;
 const COOKIE_NAME = 'sales-os-session';
 
 export { COOKIE_NAME, JWT_SECRET };

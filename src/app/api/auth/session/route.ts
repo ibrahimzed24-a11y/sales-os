@@ -2,8 +2,23 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { compare, hash } from 'bcryptjs';
 import { signToken, COOKIE_NAME } from '@/lib/auth-utils';
+import { createRateLimiter } from '@/lib/rate-limit';
+
+const rateLimit = createRateLimiter();
+
+function ipOf(req: Request) {
+  return req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown';
+}
 
 export async function POST(req: Request) {
+  const rl = rateLimit(ipOf(req));
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'rate_limited', message: 'Too many requests. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
+    );
+  }
+
   const { action } = await req.json().catch(() => ({})) as { action?: string };
 
   if (action === 'signin') {

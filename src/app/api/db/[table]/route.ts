@@ -15,6 +15,14 @@ export const dynamic = 'force-dynamic';
 
 const COOKIE_NAME = 'sales-os-session';
 
+// Prisma enum identifiers cannot contain hyphens; DB stores Mid_Market, UI uses Mid-Market.
+function normTierDb(v: unknown): unknown {
+  return v === 'Mid-Market' ? 'Mid_Market' : v;
+}
+function normTierUi(v: unknown): unknown {
+  return v === 'Mid_Market' ? 'Mid-Market' : v;
+}
+
 function getSession(req: Request): { userId: string; email: string; role: string } | null {
   const cookie = req.headers.get('cookie') ?? '';
   const match = cookie.match(new RegExp(`(?:^|; )${COOKIE_NAME}=([^;]+)`));
@@ -61,13 +69,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ table: string }
   const url = new URL(req.url);
   const pageSize = Math.min(200, Math.max(1, Number(url.searchParams.get('pageSize')) || 50));
   const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = { userId: session.userId };
 
-  // Simple filters
+  // Simple filters — strip userId so callers cannot bypass scoping
   const filterParam = url.searchParams.get('filter');
   if (filterParam) {
     try {
       const f = JSON.parse(filterParam);
+      delete f.userId;
       Object.assign(where, f);
     } catch {
       /* ignore invalid filter */
@@ -98,7 +107,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ table: string }
     (prisma as any)[modelInfo.model].count({ where }),
   ]);
 
-  return NextResponse.json({ rows, total, page, pageSize });
+  // Normalize Prisma enum Mid_Market -> Mid-Market for UI
+  const normalizedRows = rows.map((r: Record<string, unknown>) => {
+    if (r && r.tier === 'Mid_Market') r.tier = 'Mid-Market';
+    return r;
+  });
+
+  return NextResponse.json({ rows: normalizedRows, total, page, pageSize });
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ table: string }> }) {
@@ -134,6 +149,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ table: string 
   for (const item of items) {
     try {
       const data: Record<string, unknown> = { ...(item as Record<string, unknown>) };
+      if (data.tier === 'Mid-Market') data.tier = 'Mid_Market';
       data.updatedAt = now;
       if (!data.createdAt) data.createdAt = now;
       data.userId = session.userId;
@@ -179,17 +195,25 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ table: string
   const data: Record<string, unknown> = { ...body.patch, updatedAt: new Date().toISOString() };
   delete data.id;
   delete data.createdAt;
+  delete data.userId; // ownership never changes via patch
 
   let updated = 0;
+  const skipped: string[] = [];
   for (const id of body.ids) {
+    // Verify ownership before updating
+    const existing = await (prisma as any)[modelInfo.model].findUnique({ where: { id } });
+    if (!existing || existing.userId !== session.userId) {
+      skipped.push(id);
+      continue;
+    }
     try {
       await (prisma as any)[modelInfo.model].update({ where: { id }, data });
       updated++;
     } catch {
-      /* skip individual failures */
+      skipped.push(id);
     }
   }
-  return NextResponse.json({ ok: true, updated });
+  return NextResponse.json({ ok: true, updated, skipped });
 }
 
 export async function DELETE(req: Request, ctx: { params: Promise<{ table: string }> }) {
@@ -202,6 +226,12 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ table: strin
   const url = new URL(req.url);
   const id = url.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'bad_id' }, { status: 400 });
+
+  // Verify ownership before deleting
+  const existing = await (prisma as any)[modelInfo.model].findUnique({ where: { id } });
+  if (!existing || existing.userId !== session.userId) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
 
   try {
     await (prisma as any)[modelInfo.model].delete({ where: { id } });

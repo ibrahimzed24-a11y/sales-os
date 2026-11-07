@@ -63,7 +63,7 @@ export function toCSV(rows: Record<string, string | number>[]): string {
   return [headers.join(','), ...lines].join('\n');
 }
 
-export function parseCSV(text: string): string[][] {
+export function parseCSV(text: string, delim = ','): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';
@@ -81,7 +81,7 @@ export function parseCSV(text: string): string[][] {
       }
     } else if (ch === '"') {
       quoted = true;
-    } else if (ch === ',') {
+    } else if (ch === delim) {
       row.push(cell);
       cell = '';
     } else if (ch === '\n' || ch === '\r') {

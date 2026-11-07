@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cn, download, toCSV } from '@/lib/utils';
+import { cn, download, toCSV, parseCSV } from '@/lib/utils';
 import { Button, inputCls, Modal } from '@/components/ui';
 import { dbCall } from '@/lib/api';
 import { refreshDirectory } from '@/lib/store';
@@ -115,31 +115,6 @@ function detect(fields: Field[], head: string[]): Record<string, number> {
   return out;
 }
 
-function parseDelimited(text: string, d: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = '';
-  let q = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (q) {
-      if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
-      else if (ch === '"') q = false;
-      else cell += ch;
-    } else if (ch === '"') q = true;
-    else if (ch === d) { row.push(cell); cell = ''; }
-    else if (ch === '\n' || ch === '\r') {
-      if (ch === '\r' && text[i + 1] === '\n') i++;
-      row.push(cell); cell = '';
-      if (row.some((c) => c.trim() !== '')) rows.push(row);
-      row = [];
-    } else cell += ch;
-  }
-  row.push(cell);
-  if (row.some((c) => c.trim() !== '')) rows.push(row);
-  return rows;
-}
-
 type Skip = { row: number; reason: string; value: string };
 type Result = { total: number; imported: number; skipped: Skip[]; created: number; linked: number; stopped: boolean };
 
@@ -158,7 +133,7 @@ export function ImportWizard({ entity, onClose, onDone }: { entity: 'contacts' |
     const text = (await f.text()).replace(/^﻿/, '');
     const first = text.split(/\r?\n/, 1)[0] ?? '';
     const delim = [',', ';', '\t'].sort((a, b) => first.split(b).length - first.split(a).length)[0];
-    const t = parseDelimited(text, delim);
+    const t = parseCSV(text, delim);
     if (t.length < 2) { setErr('The file needs a header row and at least one data row.'); return; }
     setErr(''); setFileName(f.name); setTable(t); setMap(detect(fields, t[0]));
   };

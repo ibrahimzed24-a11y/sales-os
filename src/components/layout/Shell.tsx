@@ -18,8 +18,6 @@ import {
   Settings as SettingsIcon,
   Users,
   X,
-  Cloud,
-  AlertCircle,
 } from 'lucide-react';
 import { useStore, useUi } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -44,8 +42,6 @@ export function Shell({ children }: { children: ReactNode }) {
   const [mobileMenu, setMobileMenu] = useState(false);
   const pathname = usePathname();
   const theme = useStore((s) => s.settings.theme);
-  const syncing = useStore((s) => s.syncing);
-  const syncError = useStore((s) => s.syncError);
   const { quickAdd, setQuickAdd, setPalette } = useUi();
 
   useEffect(() => {
@@ -69,8 +65,6 @@ export function Shell({ children }: { children: ReactNode }) {
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [setPalette]);
-
-  const syncIcon = syncing ? <Cloud className="w-4 h-4 animate-spin" /> : syncError ? <AlertCircle className="w-4 h-4 text-red-500" /> : <Cloud className="w-4 h-4 text-muted" />;
 
   return (
     <div className="flex min-h-screen">
@@ -105,10 +99,6 @@ export function Shell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="mt-auto pt-4 border-t border-line">
-          <div className="flex items-center gap-2 px-2 text-xs text-muted">
-            {syncIcon}
-            <span>{syncing ? 'Syncing…' : syncError ? 'Sync error' : 'Synced'}</span>
-          </div>
           <p className="px-2 text-xs text-muted">Press Ctrl/Cmd+K</p>
         </div>
       </aside>

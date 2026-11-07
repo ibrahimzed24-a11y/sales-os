@@ -77,5 +77,17 @@ describe('utils', () => {
       const parsed = parseCSV(csv);
       expect(parsed[1][0]).toBe('Acme, Inc');
     });
+
+    it('parses semicolon-delimited data', () => {
+      const parsed = parseCSV('name;city\nAcme;NYC\nBeta;LA', ';');
+      expect(parsed[0]).toEqual(['name', 'city']);
+      expect(parsed[1]).toEqual(['Acme', 'NYC']);
+      expect(parsed[2]).toEqual(['Beta', 'LA']);
+    });
+
+    it('parses tab-delimited data', () => {
+      const parsed = parseCSV('name\tcity\nAcme\tNYC', '\t');
+      expect(parsed[1]).toEqual(['Acme', 'NYC']);
+    });
   });
 });
