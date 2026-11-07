@@ -22,6 +22,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
+  if (session.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Sending emails is limited to administrators.' }, { status: 403 });
+  }
+
   const resend = getResend();
   if (!resend) {
     return NextResponse.json(
