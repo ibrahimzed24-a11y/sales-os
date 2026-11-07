@@ -1,242 +1,232 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyToken } from '@/lib/auth-utils';
-import {
-  validateAccount,
-  validateContact,
-  validateDeal,
-  validateActivity,
-  validateProduct,
-  validateQuote,
-  validatePlaybookItem,
-} from '@/lib/validation';
+import { COOKIE_NAME, verifyToken } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
-const COOKIE_NAME = 'sales-os-session';
-
-// Prisma enum identifiers cannot contain hyphens; DB stores Mid_Market, UI uses Mid-Market.
-function normTierDb(v: unknown): unknown {
-  return v === 'Mid-Market' ? 'Mid_Market' : v;
-}
-function normTierUi(v: unknown): unknown {
-  return v === 'Mid_Market' ? 'Mid-Market' : v;
-}
-
-function getSession(req: Request): { userId: string; email: string; role: string } | null {
-  const cookie = req.headers.get('cookie') ?? '';
-  const match = cookie.match(new RegExp(`(?:^|; )${COOKIE_NAME}=([^;]+)`));
-  if (!match) return null;
-  return verifyToken(match[1]);
-}
-
-// Map table name to Prisma model and its id field
-const MODEL_MAP: Record<string, { model: string; idField: string }> = {
-  accounts: { model: 'account', idField: 'id' },
-  contacts: { model: 'contact', idField: 'id' },
-  deals: { model: 'deal', idField: 'id' },
-  activities: { model: 'activity', idField: 'id' },
-  products: { model: 'product', idField: 'id' },
-  quotes: { model: 'quote', idField: 'id' },
-  playbooks: { model: 'playbookItem', idField: 'id' },
+type Ctx = { params: Promise<{ table: string }> };
+type Body = Record<string, unknown>;
+type Cfg = {
+  model: string;
+  uuid: boolean; // id column is uuid (accounts, contacts) or text
+  readOnly?: boolean;
+  fields: string[]; // writable columns (Prisma names)
+  filters: Record<string, string>; // query param -> column
+  sorts: string[];
+  search: string[];
 };
 
-const VALIDATORS: Record<string, (data: unknown) => { success: boolean; data?: unknown; error?: unknown }> = {
-  accounts: (d) => validateAccount(d),
-  contacts: (d) => validateContact(d),
-  deals: (d) => validateDeal(d),
-  activities: (d) => validateActivity(d),
-  products: (d) => validateProduct(d),
-  quotes: (d) => validateQuote(d),
-  playbooks: (d) => validatePlaybookItem(d),
+const CFG: Record<string, Cfg> = {
+  accounts: {
+    model: 'account', uuid: true,
+    fields: ['name', 'domain', 'industry', 'size', 'annualRevenue', 'tier'],
+    filters: { tier: 'tier', industry: 'industry', id: 'id' },
+    sorts: ['createdAt', 'name', 'tier', 'industry', 'annualRevenue', 'size'],
+    search: ['name', 'domain', 'industry'],
+  },
+  contacts: {
+    model: 'contact', uuid: true,
+    fields: ['accountId', 'firstName', 'lastName', 'email', 'phone', 'role', 'leadStatus', 'leadScore', 'source', 'tags', 'owner', 'lastContactedAt'],
+    filters: { leadStatus: 'leadStatus', source: 'source', owner: 'owner', accountId: 'accountId', id: 'id' },
+    sorts: ['createdAt', 'firstName', 'lastName', 'email', 'leadScore', 'leadStatus', 'source', 'owner'],
+    search: ['firstName', 'lastName', 'email', 'phone', 'role'],
+  },
+  email_templates: {
+    model: 'emailTemplate', uuid: false,
+    fields: ['name', 'subject', 'body'],
+    filters: { id: 'id' },
+    sorts: ['createdAt', 'name'],
+    search: ['name'],
+  },
+  campaigns: {
+    model: 'campaign', uuid: false,
+    fields: ['name', 'status', 'subject', 'templateId', 'audience', 'dailyLimit', 'notes'],
+    filters: { status: 'status', id: 'id' },
+    sorts: ['createdAt', 'name', 'status'],
+    search: ['name'],
+  },
+  email_logs: {
+    model: 'emailLog', uuid: false,
+    fields: ['campaignId', 'contactId', 'toEmail', 'subject', 'body', 'status', 'error', 'gmailMessageId', 'preparedAt', 'sentAt'],
+    filters: { campaignId: 'campaignId', status: 'status', contactId: 'contactId', id: 'id' },
+    sorts: ['createdAt', 'status', 'toEmail'],
+    search: ['toEmail', 'subject'],
+  },
+  import_jobs: {
+    model: 'importJob', uuid: false, readOnly: true, fields: [],
+    filters: { id: 'id', entity: 'entity' },
+    sorts: ['createdAt'],
+    search: [],
+  },
 };
 
-async function auth(req: Request) {
-  const session = getSession(req);
-  if (!session) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
-  return session;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DATES = ['createdAt', 'preparedAt', 'sentAt', 'lastContactedAt'];
+const NUMS = ['size', 'annualRevenue', 'leadScore', 'dailyLimit'];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const M = (name: string) => (prisma as any)[name];
+
+function signedIn(req: Request): boolean {
+  const m = (req.headers.get('cookie') ?? '').match(new RegExp(`(?:^|; )${COOKIE_NAME}=([^;]+)`));
+  return !!m && !!verifyToken(m[1]);
 }
 
-export async function GET(req: Request, ctx: { params: Promise<{ table: string }> }) {
-  const session = await auth(req);
-  if (session instanceof NextResponse) return session;
+function fail(e: unknown, code: string) {
+  const msg = e instanceof Error ? e.message.split('\n').filter(Boolean).pop() ?? '' : '';
+  console.error(code, msg);
+  return NextResponse.json({ error: code, detail: msg.slice(0, 200) }, { status: 502 });
+}
+
+async function guard(req: Request, ctx: Ctx, write: boolean): Promise<{ table: string; cfg: Cfg } | NextResponse> {
+  if (!signedIn(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const { table } = await ctx.params;
-  const modelInfo = MODEL_MAP[table];
-  if (!modelInfo) return NextResponse.json({ error: 'unknown_table' }, { status: 404 });
+  const cfg = CFG[table];
+  if (!cfg || (write && cfg.readOnly)) return NextResponse.json({ error: 'unknown_table' }, { status: 404 });
+  return { table, cfg };
+}
 
-  const url = new URL(req.url);
-  const pageSize = Math.min(200, Math.max(1, Number(url.searchParams.get('pageSize')) || 50));
-  const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
-  const where: Record<string, unknown> = { userId: session.userId };
-
-  // Simple filters — strip userId so callers cannot bypass scoping
-  const filterParam = url.searchParams.get('filter');
-  if (filterParam) {
-    try {
-      const f = JSON.parse(filterParam);
-      delete f.userId;
-      Object.assign(where, f);
-    } catch {
-      /* ignore invalid filter */
+// Returns null when a filter value can never match (so the caller answers with an empty list).
+function buildWhere(table: string, cfg: Cfg, sp: URLSearchParams): Body | null {
+  const and: Body[] = [];
+  for (const [param, col] of Object.entries(cfg.filters)) {
+    const v = sp.get(param);
+    if (!v) continue;
+    if ((col === 'id' || col === 'accountId') && cfg.uuid && !UUID.test(v)) return null;
+    and.push({ [col]: v });
+  }
+  if (table === 'contacts') {
+    const tag = sp.get('tag');
+    if (tag) and.push({ tags: { has: tag } });
+    if (sp.get('hasEmail') === '1') and.push({ email: { contains: '@' } });
+  }
+  const q = (sp.get('q') ?? '').trim().toLowerCase();
+  if (q && cfg.search.length) {
+    for (const tok of q.split(/\s+/).filter(Boolean)) {
+      and.push({ OR: cfg.search.map((f) => ({ [f]: { contains: tok, mode: 'insensitive' } })) });
     }
   }
-
-  // Search
-  const q = (url.searchParams.get('q') ?? '').trim();
-  if (q && (table === 'contacts' || table === 'accounts')) {
-    where.OR = [
-      { firstName: { contains: q, mode: 'insensitive' } },
-      { lastName: { contains: q, mode: 'insensitive' } },
-      { name: { contains: q, mode: 'insensitive' } },
-      { email: { contains: q, mode: 'insensitive' } },
-    ];
-  }
-
-  const sort = url.searchParams.get('sort') || 'createdAt';
-  const dir = (url.searchParams.get('dir') || 'desc') as 'asc' | 'desc';
-
-  const [rows, total] = await Promise.all([
-    (prisma as any)[modelInfo.model].findMany({
-      where,
-      orderBy: { [sort]: dir },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    (prisma as any)[modelInfo.model].count({ where }),
-  ]);
-
-  // Normalize Prisma enum Mid_Market -> Mid-Market for UI
-  const normalizedRows = rows.map((r: Record<string, unknown>) => {
-    if (r && r.tier === 'Mid_Market') r.tier = 'Mid-Market';
-    return r;
-  });
-
-  return NextResponse.json({ rows: normalizedRows, total, page, pageSize });
+  return and.length ? { AND: and } : {};
 }
 
-export async function POST(req: Request, ctx: { params: Promise<{ table: string }> }) {
-  const session = await auth(req);
-  if (session instanceof NextResponse) return session;
-  const { table } = await ctx.params;
-  const modelInfo = MODEL_MAP[table];
-  if (!modelInfo) return NextResponse.json({ error: 'unknown_table' }, { status: 404 });
+function out(table: string, row: Body): Body {
+  const o: Body = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (k === 'account') o.accountName = v && typeof v === 'object' ? (v as { name?: string }).name ?? '' : '';
+    else if (k === '_count') o.contactCount = Number((v as { contacts?: number } | null)?.contacts ?? 0);
+    else if (v !== null && typeof v === 'object' && typeof (v as { toNumber?: unknown }).toNumber === 'function') o[k] = (v as { toNumber: () => number }).toNumber();
+    else o[k] = v === null && k.endsWith('Id') ? '' : v;
+  }
+  if (table === 'contacts' && !('accountName' in o)) o.accountName = '';
+  return o;
+}
 
-  const body = (await req.json().catch(() => null)) as { items?: unknown[]; item?: unknown } | null;
+function toData(cfg: Cfg, item: Body): Body {
+  const d: Body = {};
+  for (const f of [...cfg.fields, 'createdAt']) {
+    if (!(f in item)) continue;
+    let v = item[f];
+    if ((f.endsWith('Id') || DATES.includes(f)) && (v === '' || v === undefined)) v = null;
+    if (f === 'createdAt' && v === null) continue;
+    if (DATES.includes(f) && typeof v === 'string') {
+      const t = new Date(v);
+      v = Number.isNaN(t.getTime()) ? null : t;
+    }
+    if (NUMS.includes(f) && v !== null && v !== undefined) v = Number(v) || 0;
+    if (f === 'tags') v = Array.isArray(v) ? v.map(String) : [];
+    d[f] = v;
+  }
+  return d;
+}
+
+export async function GET(req: Request, ctx: Ctx) {
+  const g = await guard(req, ctx, false);
+  if (g instanceof NextResponse) return g;
+  const { table, cfg } = g;
+  try {
+    const sp = new URL(req.url).searchParams;
+    const all = sp.get('all') === '1';
+    const pageSize = all ? 1000 : Math.min(200, Math.max(1, Number(sp.get('pageSize')) || 50));
+    const page = Math.max(1, Number(sp.get('page')) || 1);
+    const where = buildWhere(table, cfg, sp);
+    if (!where) return NextResponse.json({ rows: [], total: 0, page, pageSize });
+    const sortRaw = sp.get('sort') ?? '';
+    const sort = cfg.sorts.includes(sortRaw) ? sortRaw : 'createdAt';
+    const dir = sp.get('dir') === 'asc' ? 'asc' : 'desc';
+    const include = table === 'contacts' ? { account: { select: { name: true } } } : table === 'accounts' ? { _count: { select: { contacts: true } } } : undefined;
+    const [rows, total] = await Promise.all([
+      M(cfg.model).findMany({ where, orderBy: [{ [sort]: dir }, { id: 'asc' }], skip: (page - 1) * pageSize, take: pageSize, ...(include ? { include } : {}) }),
+      M(cfg.model).count({ where }),
+    ]);
+    return NextResponse.json({ rows: (rows as Body[]).map((r) => out(table, r)), total, page, pageSize });
+  } catch (e) {
+    return fail(e, 'db_read_failed');
+  }
+}
+
+export async function POST(req: Request, ctx: Ctx) {
+  const g = await guard(req, ctx, true);
+  if (g instanceof NextResponse) return g;
+  const { table, cfg } = g;
+  const body = (await req.json().catch(() => null)) as { items?: Body[]; item?: Body } | null;
   const items = body?.items ?? (body?.item ? [body.item] : []);
   if (items.length === 0 || items.length > 2000) return NextResponse.json({ error: 'invalid_items' }, { status: 400 });
-
-  // Validate each item
-  const validator = VALIDATORS[table];
-  if (validator) {
-    const errors: { index: number; message: string }[] = [];
-    items.forEach((item, index) => {
-      const result = validator(item);
-      if (!result.success) {
-        const zodError = result.error as { issues?: Array<{ message: string }> };
-        errors.push({ index, message: zodError.issues?.map((i) => i.message).join(', ') || 'Invalid item' });
-      }
-    });
-    if (errors.length > 0) {
-      return NextResponse.json({ error: 'validation_failed', details: errors }, { status: 400 });
-    }
+  for (const i of items) {
+    const needsName = table === 'accounts' || table === 'campaigns' || table === 'email_templates';
+    const badId = typeof i.id !== 'string' || !i.id || (cfg.uuid && !UUID.test(i.id));
+    const badName = needsName && !String(i.name ?? '').trim();
+    const badContact = table === 'contacts' && !String(i.firstName ?? '').trim() && !String(i.lastName ?? '').trim();
+    if (badId || badName || badContact) return NextResponse.json({ error: 'invalid_item' }, { status: 400 });
   }
-
-  const now = new Date().toISOString();
-  const results: { saved: number; errors: string[] } = { saved: 0, errors: [] };
-
-  for (const item of items) {
-    try {
-      const data: Record<string, unknown> = { ...(item as Record<string, unknown>) };
-      if (data.tier === 'Mid-Market') data.tier = 'Mid_Market';
-      data.updatedAt = now;
-      if (!data.createdAt) data.createdAt = now;
-      data.userId = session.userId;
-
-      // Remove id if empty (Prisma will generate)
-      if (!data.id) delete data.id;
-
-      await (prisma as any)[modelInfo.model].create({ data });
-      results.saved++;
-    } catch (e: any) {
-      results.errors.push(e.message);
-    }
-  }
-
-  if (results.errors.length > 0) {
-    return NextResponse.json({ error: 'partial_save', saved: results.saved, errors: results.errors }, { status: 500 });
-  }
-  return NextResponse.json({ saved: results.saved });
-}
-
-export async function PATCH(req: Request, ctx: { params: Promise<{ table: string }> }) {
-  const session = await auth(req);
-  if (session instanceof NextResponse) return session;
-  const { table } = await ctx.params;
-  const modelInfo = MODEL_MAP[table];
-  if (!modelInfo) return NextResponse.json({ error: 'unknown_table' }, { status: 404 });
-
-  const body = (await req.json().catch(() => null)) as { ids?: string[]; patch?: Record<string, unknown> } | null;
-  if (!body || !body.ids || !body.patch) return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
-
-  const validator = VALIDATORS[table];
-  if (validator && body.patch) {
-    const result = validator(body.patch);
-    if (!result.success) {
-      const zodError = result.error as { issues?: Array<{ message: string }> };
-      return NextResponse.json(
-        { error: 'validation_failed', details: zodError.issues?.map((i) => i.message).join(', ') },
-        { status: 400 },
-      );
-    }
-  }
-
-  const data: Record<string, unknown> = { ...body.patch, updatedAt: new Date().toISOString() };
-  delete data.id;
-  delete data.createdAt;
-  delete data.userId; // ownership never changes via patch
-
-  let updated = 0;
-  const skipped: string[] = [];
-  for (const id of body.ids) {
-    // Verify ownership before updating
-    const existing = await (prisma as any)[modelInfo.model].findUnique({ where: { id } });
-    if (!existing || existing.userId !== session.userId) {
-      skipped.push(id);
-      continue;
-    }
-    try {
-      await (prisma as any)[modelInfo.model].update({ where: { id }, data });
-      updated++;
-    } catch {
-      skipped.push(id);
-    }
-  }
-  return NextResponse.json({ ok: true, updated, skipped });
-}
-
-export async function DELETE(req: Request, ctx: { params: Promise<{ table: string }> }) {
-  const session = await auth(req);
-  if (session instanceof NextResponse) return session;
-  const { table } = await ctx.params;
-  const modelInfo = MODEL_MAP[table];
-  if (!modelInfo) return NextResponse.json({ error: 'unknown_table' }, { status: 404 });
-
-  const url = new URL(req.url);
-  const id = url.searchParams.get('id');
-  if (!id) return NextResponse.json({ error: 'bad_id' }, { status: 400 });
-
-  // Verify ownership before deleting
-  const existing = await (prisma as any)[modelInfo.model].findUnique({ where: { id } });
-  if (!existing || existing.userId !== session.userId) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
-
   try {
-    await (prisma as any)[modelInfo.model].delete({ where: { id } });
+    const ignore = new URL(req.url).searchParams.get('ignore') === '1';
+    for (let n = 0; n < items.length; n += 100) {
+      const chunk = items.slice(n, n + 100);
+      if (ignore) {
+        await M(cfg.model).createMany({ data: chunk.map((i) => ({ id: i.id, ...toData(cfg, i) })), skipDuplicates: true });
+      } else {
+        await prisma.$transaction(
+          chunk.map((i) => M(cfg.model).upsert({ where: { id: i.id }, create: { id: i.id, ...toData(cfg, i) }, update: { ...toData(cfg, i), updatedAt: new Date() } })),
+        );
+      }
+    }
+    return NextResponse.json({ saved: items.length });
+  } catch (e) {
+    return fail(e, 'db_write_failed');
+  }
+}
+
+export async function PATCH(req: Request, ctx: Ctx) {
+  const g = await guard(req, ctx, true);
+  if (g instanceof NextResponse) return g;
+  const { table, cfg } = g;
+  const body = (await req.json().catch(() => null)) as { ids?: string[]; all?: boolean; filters?: Record<string, string>; patch?: Body } | null;
+  if (!body) return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
+  const data = toData(cfg, body.patch ?? {});
+  delete data.createdAt;
+  if (Object.keys(data).length === 0) return NextResponse.json({ error: 'empty_patch' }, { status: 400 });
+  try {
+    let where: Body | null;
+    if (body.all) where = buildWhere(table, cfg, new URLSearchParams(body.filters ?? {}));
+    else where = { id: { in: (body.ids ?? []).filter((x) => typeof x === 'string' && (!cfg.uuid || UUID.test(x))) } };
+    if (!where) return NextResponse.json({ ok: true, updated: 0 });
+    const r = await M(cfg.model).updateMany({ where, data: { ...data, updatedAt: new Date() } });
+    return NextResponse.json({ ok: true, updated: r.count });
+  } catch (e) {
+    return fail(e, 'db_write_failed');
+  }
+}
+
+export async function DELETE(req: Request, ctx: Ctx) {
+  const g = await guard(req, ctx, true);
+  if (g instanceof NextResponse) return g;
+  const { cfg } = g;
+  const id = new URL(req.url).searchParams.get('id') ?? '';
+  if (!id || (cfg.uuid && !UUID.test(id))) return NextResponse.json({ error: 'bad_id' }, { status: 400 });
+  try {
+    await M(cfg.model).deleteMany({ where: { id } });
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: 'delete_failed' }, { status: 500 });
+  } catch (e) {
+    return fail(e, 'db_write_failed');
   }
 }
