@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { AsyncLocalStorage } from 'async_hooks';
 import { randomUUID, createHmac, timingSafeEqual } from 'crypto';
 import { Resend } from 'resend';
 import { prisma } from '@/lib/prisma';
@@ -23,8 +24,16 @@ const s = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' : 
 const digits = (v: string) => v.replace(/\D/g, '');
 const domainOf = (w: string) => w.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split(/[/?#]/)[0].toLowerCase();
 const isTestAddr = (e: string) => /@example\.test$/i.test(e);
-const q = <T = Row>(sql: string, ...params: unknown[]) => prisma.$queryRawUnsafe<T[]>(sql, ...params);
-const x = (sql: string, ...params: unknown[]) => prisma.$executeRawUnsafe(sql, ...params);
+// Every request runs inside this store so each query can be scoped to the signed-in user (__UID__ = that user's id).
+const ctxStore = new AsyncLocalStorage<{ uid: string; role: string }>();
+const owner = (sql: string) =>
+  sql.replace(/__UID__/g, () => {
+    const u = ctxStore.getStore()?.uid ?? '';
+    if (!/^[0-9a-f-]{36}$/i.test(u)) throw new Error('No signed-in user');
+    return "'" + u + "'::uuid";
+  });
+const q = <T = Row>(sql: string, ...params: unknown[]) => prisma.$queryRawUnsafe<T[]>(owner(sql), ...params);
+const x = (sql: string, ...params: unknown[]) => prisma.$executeRawUnsafe(owner(sql), ...params);
 
 function unsubToken(email: string): string {
   return createHmac('sha256', JWT_SECRET).update(email.toLowerCase()).digest('hex').slice(0, 32);
@@ -32,6 +41,14 @@ function unsubToken(email: string): string {
 const unsubUrl = (email: string) => BASE + '/api/send-os/unsub?e=' + encodeURIComponent(email) + '&t=' + unsubToken(email);
 
 async function handle(req: Request, ctx: Ctx, method: 'GET' | 'POST') {
+  const { slug } = await ctx.params;
+  if ((slug ?? []).join('/') === 'unsub') return handleInner(req, ctx, method);
+  const sess = getSessionFromCookie(req.headers.get('cookie'));
+  if (!sess) return json({ error: 'unauthorized' }, 401);
+  return ctxStore.run({ uid: sess.userId, role: sess.role }, () => handleInner(req, ctx, method));
+}
+
+async function handleInner(req: Request, ctx: Ctx, method: 'GET' | 'POST') {
   const { slug } = await ctx.params;
   const route = (slug ?? []).join('/');
   try {
@@ -56,7 +73,7 @@ export async function POST(req: Request, ctx: Ctx) { return handle(req, ctx, 'PO
 // ---------- templates ----------
 async function listTemplates() {
   const templates = await q(
-    'select id, name, subject, body, category, coalesce(variables, ARRAY[]::text[]) as variables, source_file as "sourceFile", created_at as "createdAt" from email_templates order by created_at, name',
+    'select id, name, subject, body, category, coalesce(variables, ARRAY[]::text[]) as variables, source_file as "sourceFile", created_at as "createdAt" from email_templates where owner_id = __UID__ order by created_at, name',
   );
   return json({ templates });
 }
@@ -71,13 +88,13 @@ async function saveTemplate(req: Request) {
   const variables: string[] = Array.isArray(b.variables) ? b.variables.map((v: unknown) => s(v)).filter(Boolean) : [];
   if (!name || !subject || !body) return json({ error: 'name, subject and body are required' }, 400);
   if (body.length > 400000) return json({ error: 'Template body is too large' }, 400);
-  const found = sourceFile ? await q('select id from email_templates where source_file = $1 limit 1', sourceFile) : [];
+  const found = sourceFile ? await q('select id from email_templates where source_file = $1 and owner_id = __UID__ limit 1', sourceFile) : [];
   if (found.length) {
-    await x('update email_templates set name=$2, subject=$3, body=$4, category=$5, variables=$6::text[], updated_at=now() where id=$1', found[0].id, name, subject, body, category, variables);
+    await x('update email_templates set name=$2, subject=$3, body=$4, category=$5, variables=$6::text[], updated_at=now() where id=$1 and owner_id = __UID__', found[0].id, name, subject, body, category, variables);
     return json({ id: found[0].id, action: 'updated' });
   }
   const id = randomUUID();
-  await x('insert into email_templates (id, name, subject, body, category, variables, source_file) values ($1,$2,$3,$4,$5,$6::text[],$7)', id, name, subject, body, category, variables, sourceFile || null);
+  await x('insert into email_templates (owner_id, id, name, subject, body, category, variables, source_file) values (__UID__, $1,$2,$3,$4,$5,$6::text[],$7)', id, name, subject, body, category, variables, sourceFile || null);
   return json({ id, action: 'created' });
 }
 
@@ -90,8 +107,8 @@ async function leads(req: Request) {
   const dryRun = b.dryRun !== false; // default is a safe check; only dryRun:false writes
   const fileName = s(b.fileName).slice(0, 200);
 
-  const accs = await q('select id, name, city from accounts');
-  const cons = await q('select id, account_id, first_name, last_name, email from contacts');
+  const accs = await q('select id, name, city from accounts where owner_id = __UID__');
+  const cons = await q('select id, account_id, first_name, last_name, email from contacts where owner_id = __UID__');
   const accByName = new Map<string, Row[]>();
   for (const a of accs) {
     const k = s(a.name).toLowerCase();
@@ -146,7 +163,7 @@ async function leads(req: Request) {
         if (acc) {
           if (!dryRun) {
             await x(
-              'update accounts set domain=coalesce(nullif($2,\'\'),domain), website=coalesce(nullif($3,\'\'),website), city=coalesce(nullif($4,\'\'),city), province_state=coalesce(nullif($5,\'\'),province_state), phone=coalesce(nullif($6,\'\'),phone), updated_at=now() where id=$1::uuid',
+              'update accounts set domain=coalesce(nullif($2,\'\'),domain), website=coalesce(nullif($3,\'\'),website), city=coalesce(nullif($4,\'\'),city), province_state=coalesce(nullif($5,\'\'),province_state), phone=coalesce(nullif($6,\'\'),phone), updated_at=now() where id=$1::uuid and owner_id = __UID__',
               acc.id, website ? domainOf(website) : '', website, city, prov, phone,
             );
           }
@@ -154,7 +171,7 @@ async function leads(req: Request) {
         } else {
           let id = 'dry-' + i;
           if (!dryRun) {
-            const ins = await q('insert into accounts (name, domain, website, city, province_state, phone) values ($1, nullif($2,\'\'), nullif($3,\'\'), nullif($4,\'\'), nullif($5,\'\'), nullif($6,\'\')) returning id', clinic, website ? domainOf(website) : '', website, city, prov, phone);
+            const ins = await q('insert into accounts (owner_id, name, domain, website, city, province_state, phone) values (__UID__, $1, nullif($2,\'\'), nullif($3,\'\'), nullif($4,\'\'), nullif($5,\'\'), nullif($6,\'\')) returning id', clinic, website ? domainOf(website) : '', website, city, prov, phone);
             id = ins[0].id;
           }
           acc = { id, name: clinic, city: city || null };
@@ -170,7 +187,7 @@ async function leads(req: Request) {
       if (con) {
         if (!dryRun) {
           await x(
-            'update contacts set account_id=coalesce(account_id,$2::uuid), first_name=case when $3 then $4 else first_name end, last_name=case when $3 then $5 else last_name end, email=coalesce(nullif($6,\'\'),email), phone=coalesce(nullif($7,\'\'),phone), role=coalesce(nullif($8,\'\'),role), updated_at=now() where id=$1::uuid',
+            'update contacts set account_id=coalesce(account_id,$2::uuid), first_name=case when $3 then $4 else first_name end, last_name=case when $3 then $5 else last_name end, email=coalesce(nullif($6,\'\'),email), phone=coalesce(nullif($7,\'\'),phone), role=coalesce(nullif($8,\'\'),role), updated_at=now() where id=$1::uuid and owner_id = __UID__',
             con.id, accountId, hasPerson, first, last, email, phone, role,
           );
         }
@@ -178,7 +195,7 @@ async function leads(req: Request) {
       } else {
         if (!dryRun) {
           const ins = await q(
-            'insert into contacts (account_id, first_name, last_name, email, phone, role, source, tags) values ($1::uuid, $2, $3, nullif($4,\'\'), nullif($5,\'\'), nullif($6,\'\'), \'Outbound\', ARRAY[\'upload\']::text[]) returning id',
+            'insert into contacts (owner_id, account_id, first_name, last_name, email, phone, role, source, tags) values (__UID__, $1::uuid, $2, $3, nullif($4,\'\'), nullif($5,\'\'), nullif($6,\'\'), \'Outbound\', ARRAY[\'upload\']::text[]) returning id',
             accountId, first, last, email, phone, role,
           );
           const nc = { id: ins[0].id, account_id: accountId, first_name: first, last_name: last, email: email || null };
@@ -194,7 +211,7 @@ async function leads(req: Request) {
 
   if (!dryRun) {
     await x(
-      'insert into import_jobs (id, entity, file_name, total, imported, skipped, report) values ($1,$2,$3,$4,$5,$6,$7::jsonb)',
+      'insert into import_jobs (owner_id, id, entity, file_name, total, imported, skipped, report) values (__UID__, $1,$2,$3,$4,$5,$6,$7::jsonb)',
       randomUUID(), 'leads', fileName || null, rows.length, created + updated, skipped.length, JSON.stringify({ created, updated, accountsCreated, accountsUpdated, skipped: skipped.slice(0, 200), warnings: warnings.slice(0, 200) }),
     );
   }
@@ -207,14 +224,14 @@ type Eligible = { contactId: string; to: string; name: string; clinic: string; s
 type Excluded = { contactId: string; name: string; email: string; clinic: string; reason: string };
 
 async function audience(templateId: string, ids: string[] | null, filter: Filter) {
-  const tpl = (await q('select id, name, subject, body from email_templates where id = $1 limit 1', templateId))[0];
+  const tpl = (await q('select id, name, subject, body from email_templates where id = $1 and owner_id = __UID__ limit 1', templateId))[0];
   if (!tpl) throw new Error('Template not found');
   const subjectSrc = s(tpl.subject);
   const bodySrc = s(tpl.body);
   const tokens = tokensIn(subjectSrc + ' ' + bodySrc).filter((t) => t !== 'unsubscribe_link');
 
   let list = await q(
-    'select c.id, c.first_name, c.last_name, c.email, c.phone, c.role, c.opted_out_at, a.name as clinic, a.domain, a.website, a.city, a.province_state, a.phone as account_phone from contacts c left join accounts a on a.id = c.account_id order by c.created_at, c.id',
+    'select c.id, c.first_name, c.last_name, c.email, c.phone, c.role, c.opted_out_at, a.name as clinic, a.domain, a.website, a.city, a.province_state, a.phone as account_phone from contacts c left join accounts a on a.id = c.account_id and a.owner_id = __UID__ where c.owner_id = __UID__ order by c.created_at, c.id',
   );
   if (ids) { const want = new Set(ids); list = list.filter((c) => want.has(c.id)); }
   const fc = s(filter.city).toLowerCase(), fp = s(filter.province_state).toLowerCase(), fq = s(filter.q).toLowerCase();
@@ -224,7 +241,7 @@ async function audience(templateId: string, ids: string[] | null, filter: Filter
 
   const optOuts = new Set((await q('select lower(email) as e from email_opt_outs')).map((r) => r.e));
   const logs = await q(
-    'select lower(l.to_email) as e, l.status, l.sent_at, l.replied_at, l.bounced_at, l.opted_out_at, c.template_id, c.name as campaign from email_logs l left join campaigns c on c.id = l.campaign_id where l.to_email is not null',
+    'select lower(l.to_email) as e, l.status, l.sent_at, l.replied_at, l.bounced_at, l.opted_out_at, c.template_id, c.name as campaign from email_logs l left join campaigns c on c.id = l.campaign_id where l.to_email is not null and l.owner_id = __UID__',
   );
   const byEmail = new Map<string, Row[]>();
   for (const l of logs) { const a = byEmail.get(l.e) ?? []; a.push(l); byEmail.set(l.e, a); }
@@ -289,6 +306,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function send(req: Request) {
   const b = await req.json();
+  if (ctxStore.getStore()?.role !== 'ADMIN') return json({ error: 'Sending emails is limited to administrators.' }, 403);
   if (b.confirm !== 'SEND') return json({ error: 'Sending needs explicit confirmation' }, 400);
   const templateId = s(b.templateId);
   const ids: string[] = Array.isArray(b.contactIds) ? b.contactIds.map((v: unknown) => s(v)).filter(Boolean) : [];
@@ -306,7 +324,7 @@ async function send(req: Request) {
   const campaignId = randomUUID();
   const campaignName = s(b.campaignName).slice(0, 200) || (s(a.tpl.name) + ' - ' + new Date().toISOString().slice(0, 16).replace('T', ' '));
   await x(
-    'insert into campaigns (id, name, status, subject, template_id, audience, daily_limit, notes) values ($1,$2,$3,$4,$5,$6::jsonb,$7,$8)',
+    'insert into campaigns (owner_id, id, name, status, subject, template_id, audience, daily_limit, notes) values (__UID__, $1,$2,$3,$4,$5,$6::jsonb,$7,$8)',
     campaignId, campaignName, 'sending', s(a.tpl.subject), templateId, JSON.stringify({ contacts: a.eligible.length }), MAX_PER_RUN, 'Manual send',
   );
 
@@ -315,7 +333,7 @@ async function send(req: Request) {
   for (const e of a.eligible) {
     const logId = randomUUID();
     const ins = await q(
-      'insert into email_logs (id, campaign_id, contact_id, to_email, subject, body, status, thread_key, prepared_at) values ($1,$2,$3,$4,$5,$6,\'queued\',$7,now()) on conflict do nothing returning id',
+      'insert into email_logs (owner_id, id, campaign_id, contact_id, to_email, subject, body, status, thread_key, prepared_at) values (__UID__, $1,$2,$3,$4,$5,$6,\'queued\',$7,now()) on conflict do nothing returning id',
       logId, campaignId, e.contactId, e.to, e.subject, e.html, e.to + '|' + templateId,
     );
     if (!ins.length) { duplicates++; results.push({ to: e.to, status: 'skipped', error: 'duplicate in this campaign' }); continue; }
@@ -346,7 +364,7 @@ async function send(req: Request) {
         results.push({ to: e.to, status: 'bounced' });
       } else {
         await x('update email_logs set status=\'sent\', gmail_message_id=$2, sent_at=now(), updated_at=now() where id=$1', logId, providerId);
-        await x('update contacts set last_contacted_at=now(), lead_status=case when lead_status=\'New\' then \'Contacted\' else lead_status end, updated_at=now() where id=$1::uuid', e.contactId);
+        await x('update contacts set last_contacted_at=now(), lead_status=case when lead_status=\'New\' then \'Contacted\' else lead_status end, updated_at=now() where id=$1::uuid and owner_id = __UID__', e.contactId);
         sent++;
         results.push({ to: e.to, status: 'sent' });
       }
@@ -375,11 +393,11 @@ async function setStatus(req: Request) {
   let email = s(b.email).toLowerCase();
   const logId = s(b.logId);
   if (logId) {
-    const row = (await q('select to_email from email_logs where id=$1', logId))[0];
+    const row = (await q('select to_email from email_logs where id=$1 and owner_id = __UID__', logId))[0];
     if (!row) return json({ error: 'Log not found' }, 404);
     email = s(row.to_email).toLowerCase();
     const col = status === 'replied' ? 'replied_at' : status === 'bounced' ? 'bounced_at' : 'opted_out_at';
-    await x('update email_logs set status=$2, ' + col + '=now(), updated_at=now() where id=$1', logId, status);
+    await x('update email_logs set status=$2, ' + col + '=now(), updated_at=now() where id=$1 and owner_id = __UID__', logId, status);
   }
   if (status === 'opted_out') {
     if (!EMAIL_RE.test(email)) return json({ error: 'A valid email is required' }, 400);
@@ -390,10 +408,10 @@ async function setStatus(req: Request) {
 
 async function history() {
   const logs = await q(
-    'select l.id, l.campaign_id as "campaignId", c.name as "campaignName", l.to_email as "toEmail", l.subject, l.status, l.error, l.sent_at as "sentAt", l.failed_at as "failedAt", l.bounced_at as "bouncedAt", l.replied_at as "repliedAt", l.opted_out_at as "optedOutAt", l.created_at as "createdAt" from email_logs l left join campaigns c on c.id = l.campaign_id order by l.created_at desc limit 300',
+    'select l.id, l.campaign_id as "campaignId", c.name as "campaignName", l.to_email as "toEmail", l.subject, l.status, l.error, l.sent_at as "sentAt", l.failed_at as "failedAt", l.bounced_at as "bouncedAt", l.replied_at as "repliedAt", l.opted_out_at as "optedOutAt", l.created_at as "createdAt" from email_logs l left join campaigns c on c.id = l.campaign_id where l.owner_id = __UID__ order by l.created_at desc limit 300',
   );
-  const counts = await q('select status, count(*)::int as n from email_logs group by status');
-  const optOuts = (await q('select count(*)::int as n from email_opt_outs'))[0]?.n ?? 0;
+  const counts = await q('select status, count(*)::int as n from email_logs where owner_id = __UID__ group by status');
+  const optOuts = (await q('select count(*)::int as n from email_opt_outs o where exists (select 1 from contacts c where c.owner_id = __UID__ and lower(c.email) = o.email)'))[0]?.n ?? 0;
   return json({ logs, counts, optOuts });
 }
 
