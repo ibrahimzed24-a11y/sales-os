@@ -1,41 +1,11 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { hash } from 'bcryptjs';
-import { createRateLimiter } from '@/lib/rate-limit';
+import { POST as sessionPost } from '../session/route';
 
-const rateLimit = createRateLimiter();
+export const dynamic = 'force-dynamic';
 
-function ipOf(req: Request) {
-  return req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown';
-}
-
+// Registration shares the rules of /api/auth/session (first account is the admin, later ones need ACCESS_CODE).
 export async function POST(req: Request) {
-  const rl = rateLimit(ipOf(req));
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { error: 'rate_limited', message: 'Too many requests. Please try again later.' },
-      { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
-    );
-  }
-
-  try {
-    const { name, email, password } = await req.json();
-    if (!name || !email || !password) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-    if (password.length < 8) {
-      return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
-    }
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
-    }
-    const hashedPassword = await hash(password, 12);
-    await prisma.user.create({
-      data: { name, email, password: hashedPassword, role: 'REP' },
-    });
-    return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: 'Registration failed' }, { status: 500 });
-  }
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  return sessionPost(
+    new Request(req.url, { method: 'POST', headers: req.headers, body: JSON.stringify({ ...body, action: 'signup' }) }),
+  );
 }
