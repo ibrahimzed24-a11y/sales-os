@@ -1,0 +1,25 @@
+{
+  "Barrie Dental Arts": {
+    "compose": [
+      {
+        "url": "https://static.wixstatic.com/media/48f953_01e96afd18354eca90addeb405e9e88d~mv2.png/v1/fill/w_698,h_220,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/Barrie%20Dental%20Arts%20Logo%20elements%201.png",
+        "width": 280
+      },
+      {
+        "url": "https://static.wixstatic.com/media/48f953_6159c42f87ad4b028fd950212ef295a9~mv2.png/v1/fill/w_700,h_224,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/Barrie%20Dental%20Arts%20Logo%20elements%202.png",
+        "width": 280
+      },
+      {
+        "url": "https://static.wixstatic.com/media/48f953_d0a98b0c0d334578b04d8345341476fb~mv2.png/v1/fill/w_700,h_220,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/Barrie%20Dental%20Arts%20Logo%20elements%203.png",
+        "width": 200
+      }
+    ],
+    "gap": 6,
+    "canvasWidth": 360,
+    "note": "Wix assembles the Barrie wordmark from three separate text/arc elements."
+  },
+  "Arvanitis & Associates, Dentistry By Design": {
+    "local": "assets/source/arvanitis-and-associates.png",
+    "note": "Homepage HTML fails with an HTTP/2 protocol error; the brand PNG was downloaded once and is self-hosted."
+  }
+}

@@ -1,89 +1,250 @@
+#!/usr/bin/env node
 /**
- * =============================================================================
- * Valioz Health — Validate Templates (Pre-Send QA)
- * =============================================================================
- * Verifies:
- *  1. Every enriched clinic has a valid HTTPS PNG logo URL (200 OK, <50 KB)
- *  2. Compiled HTML templates preserve nested <table> structure
- *  3. No flexbox or grid in templates
- *  4. Both dual-brand logos present in each template
+ * Valioz Health — Pre-Send QA
+ *
+ * Fails the build unless:
+ *   1. Every enriched logo URL is a public HTTPS PNG, 200 OK, <=180x60, <=50 KB,
+ *      and byte-identical to the local asset that will be committed.
+ *   2. Every clinic produced exactly five HTML files.
+ *   3. Each file contains exactly two images (Valioz left, clinic right), the
+ *      "Prepared for" label, the real body copy, no unresolved tags, no
+ *      flexbox/grid, and balanced table markup.
+ *
+ * Run: npm test
  */
 
 const fs = require('fs');
 const path = require('path');
-const csv = require('csv-parse/sync');
+const crypto = require('crypto');
+const { parse } = require('csv-parse/sync');
 const fetch = require('node-fetch');
+const sharp = require('sharp');
+const { STEP_MARKERS, htmlToText } = require('../lib/builder');
+const { STEPS, slugify, esc } = require('../lib/sequence-content');
+const VALIOZ = require('../lib/valioz-brand');
 
 const ROOT = path.resolve(__dirname, '..');
-const DATA_DIR = path.join(ROOT, 'data');
 const DIST_DIR = path.join(ROOT, 'dist', 'personalized');
-const ENRICHED_CSV = path.join(DATA_DIR, 'dental-clinics-enriched.csv');
+const COMPILED_DIR = path.join(ROOT, 'compiled');
+const ASSETS_DIR = path.join(ROOT, 'assets', 'clinic-logos');
+const ENRICHED_CSV = path.join(ROOT, 'data', 'dental-clinics-enriched.csv');
+
+const MAX_BYTES = 50 * 1024;
+const MAX_WIDTH = 180;
+const MAX_HEIGHT = 60;
+const CONCURRENCY = 8;
 
 let errors = 0;
 let warnings = 0;
 
-function log(msg) { console.log(msg); }
-function err(msg) { console.error(`  ✖ ${msg}`); errors++; }
-function warn(msg) { console.log(`  ⚠ ${msg}`); warnings++; }
+function fail(message) {
+  console.error(`  ✖ ${message}`);
+  errors += 1;
+}
 
-async function validateLogoUrl(url, clinicName) {
-  if (!url || !url.startsWith('http')) {
-    err(`[${clinicName}] logo URL missing or invalid: ${url}`);
-    return false;
+function warn(message) {
+  console.log(`  ⚠ ${message}`);
+  warnings += 1;
+}
+
+function sha256(buffer) {
+  return crypto.createHash('sha256').update(buffer).digest('hex');
+}
+
+function isPng(buffer) {
+  return (
+    buffer.length > 8 &&
+    buffer.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  );
+}
+
+async function mapLimit(items, limit, worker) {
+  const results = new Array(items.length);
+  let index = 0;
+  const run = async () => {
+    while (index < items.length) {
+      const current = index;
+      index += 1;
+      results[current] = await worker(items[current], current);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return results;
+}
+
+async function fetchImage(url) {
+  const res = await fetch(url, {
+    timeout: 20000,
+    redirect: 'follow',
+    headers: { 'user-agent': 'ValiozTemplateQA/1.0' },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const type = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  if (!type.startsWith('image/')) throw new Error(`content-type ${type || '(none)'}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  if (buffer.length > MAX_BYTES) throw new Error(`${buffer.length} bytes (>50 KB)`);
+  return { buffer, type };
+}
+
+async function validateClinicLogo(row) {
+  const name = row.clinic_brand_name;
+  const slug = slugify(name);
+  const url = row.clinic_logo_hosted_url;
+
+  if (!url || !url.startsWith('https://')) {
+    fail(`[${name}] logo URL is not public HTTPS: ${url || '(empty)'}`);
+    return;
   }
+  if (!url.endsWith(`/${slug}.png`)) {
+    fail(`[${name}] logo URL does not match clinic slug "${slug}": ${url}`);
+    return;
+  }
+  if (!['OK', 'FALLBACK'].includes(row.logo_verified_status)) {
+    fail(`[${name}] invalid logo_verified_status "${row.logo_verified_status}"`);
+  } else {
+    const expected = ['WEBSITE_HEADER', 'CURATED'].includes(row.logo_source_tier)
+      ? 'OK'
+      : 'FALLBACK';
+    if (!['WEBSITE_HEADER', 'CURATED', 'DSO_FALLBACK', 'MONOGRAM_FALLBACK', 'ICON_FALLBACK'].includes(row.logo_source_tier)) {
+      fail(`[${name}] unknown logo_source_tier "${row.logo_source_tier}"`);
+    } else if (row.logo_verified_status !== expected) {
+      fail(
+        `[${name}] status "${row.logo_verified_status}" does not match tier "${row.logo_source_tier}"`
+      );
+    }
+  }
+
   try {
-    const res = await fetch(url, { method: 'HEAD', timeout: 10000 });
-    if (!res.ok) {
-      err(`[${clinicName}] logo ${url} returned ${res.status}`);
-      return false;
+    const { buffer } = await fetchImage(url);
+    if (!isPng(buffer)) throw new Error('response is not PNG bytes');
+    const meta = await sharp(buffer).metadata();
+    if (meta.format !== 'png') throw new Error(`decoded format ${meta.format}`);
+    if (meta.width > MAX_WIDTH || meta.height > MAX_HEIGHT) {
+      throw new Error(`${meta.width}x${meta.height} exceeds ${MAX_WIDTH}x${MAX_HEIGHT}`);
     }
-    const ct = res.headers.get('content-type') || '';
-    if (!ct.startsWith('image/')) {
-      err(`[${clinicName}] logo ${url} content-type is ${ct}, expected image/`);
-      return false;
+    if (meta.width < 32 || meta.height < 12) {
+      throw new Error(`${meta.width}x${meta.height} is too small to render`);
     }
-    const len = res.headers.get('content-length');
-    if (len && parseInt(len, 10) > 50 * 1024) {
-      err(`[${clinicName}] logo ${url} is ${len} bytes (>50 KB)`);
-      return false;
+
+    const localFile = path.join(ASSETS_DIR, `${slug}.png`);
+    if (!fs.existsSync(localFile)) {
+      throw new Error(`local asset missing: assets/clinic-logos/${slug}.png`);
     }
-    return true;
-  } catch (e) {
-    err(`[${clinicName}] logo ${url} fetch failed: ${e.message}`);
-    return false;
+    if (sha256(fs.readFileSync(localFile)) !== sha256(buffer)) {
+      throw new Error('hosted image differs from local asset — commit and push assets');
+    }
+  } catch (error) {
+    fail(`[${name}] ${error.message} — ${url}`);
   }
 }
 
-function validateTemplate(html, clinicName) {
-  let ok = true;
+function validateHtml(html, row, step, file) {
+  const name = row.clinic_brand_name;
+  const label = `[${name}] ${path.basename(file)}`;
 
-  // Must use tables, not flexbox/grid
-  if (html.match(/display:\s*flex/i)) {
-    err(`[${clinicName}] template uses flexbox (not email-safe)`);
-    ok = false;
-  }
-  if (html.match(/display:\s*grid/i)) {
-    err(`[${clinicName}] template uses CSS grid (not email-safe)`);
-    ok = false;
-  }
+  if (!html.startsWith('<!DOCTYPE html>')) fail(`${label} missing doctype`);
+  if (!html.includes(VALIOZ.logoUrl)) fail(`${label} missing Valioz logo`);
+  if (!html.includes(row.clinic_logo_hosted_url)) fail(`${label} missing clinic logo`);
+  if (!html.includes(`Prepared for ${esc(name)}`)) fail(`${label} missing "Prepared for" label`);
 
-  // Must have table-based layout
-  if (!html.match(/<table[^>]*role=["']presentation["']/i)) {
-    err(`[${clinicName}] template missing table[role="presentation"]`);
-    ok = false;
+  const images = (html.match(/<img\b/gi) || []).length;
+  if (images !== 2) fail(`${label} expected 2 images, found ${images}`);
+  if (!html.includes(`href="${VALIOZ.brandUrl}"`)) {
+    fail(`${label} Valioz logo is not linked to valioz.com`);
   }
-
-  // Must have both logos
-  if (!html.match(/VALIOZ_Health_Primary/i)) {
-    err(`[${clinicName}] missing Valioz Health logo`);
-    ok = false;
-  }
-  const clinicSlug = clinicName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  if (!html.match(/clinic[-_]?logo|downtown|clinic_logo/i)) {
-    warn(`[${clinicName}] may be missing clinic logo reference`);
+  for (const img of html.match(/<img\b[^>]*>/gi) || []) {
+    if (!/height="48"/.test(img)) fail(`${label} header logo height attribute is not 48`);
+    if (!/height:\s*48px/i.test(img)) fail(`${label} header logo CSS height is not 48px`);
+    if (!/width:\s*auto/i.test(img)) fail(`${label} header logo CSS width is not auto`);
+    if (!/display:\s*block/i.test(img)) fail(`${label} header logo is not display:block`);
+    if (!/border:\s*0/i.test(img)) fail(`${label} header logo has a border`);
+    if (!/max-width:\s*100%/i.test(img)) fail(`${label} header logo lacks max-width:100%`);
+    if (!/alt="[^"]+"/i.test(img)) fail(`${label} header logo lacks alt text`);
   }
 
-  return ok;
+  if (/{{|}}/.test(html)) fail(`${label} contains unresolved template tags`);
+  if (/display:\s*(flex|grid)/i.test(html)) fail(`${label} uses flexbox/grid`);
+  if (/src=(""|'')|src=["']undefined["']/i.test(html)) fail(`${label} has an empty image src`);
+  if (!/<table[^>]*role=["']presentation["']/i.test(html)) {
+    fail(`${label} missing role="presentation" table`);
+  }
+
+  for (const tag of ['table', 'tr', 'td']) {
+    const open = (html.match(new RegExp(`<${tag}\\b`, 'gi')) || []).length;
+    const close = (html.match(new RegExp(`</${tag}>`, 'gi')) || []).length;
+    if (open !== close) fail(`${label} ${tag} tags unbalanced (${open} open / ${close} close)`);
+  }
+
+  const text = htmlToText(html);
+  const words = text.split(/\s+/).filter(Boolean).length;
+  if (words < 150) fail(`${label} body too thin (${words} words)`);
+  if (!/HIPAA notice/i.test(text)) fail(`${label} missing HIPAA footer`);
+  if (!/Unsubscribe/i.test(text)) fail(`${label} missing unsubscribe link`);
+  if (!/<a\b[^>]*href="[^"]+"[^>]*>\s*Unsubscribe\s*<\/a>/i.test(html)) {
+    fail(`${label} unsubscribe text is not a link`);
+  }
+
+  const marker = STEP_MARKERS[step.key];
+  if (marker && !text.includes(marker)) fail(`${label} missing ${step.key} body copy`);
+}
+
+async function validateValiozLogo() {
+  try {
+    const { buffer, type } = await fetchImage(VALIOZ.logoUrl);
+    if (!isPng(buffer)) throw new Error('response is not PNG bytes');
+    const meta = await sharp(buffer).metadata();
+    if (meta.format !== 'png') throw new Error(`decoded format ${meta.format}`);
+    if (meta.height > 400 || meta.width > 1200) {
+      throw new Error(`${meta.width}x${meta.height} is larger than expected for a header logo`);
+    }
+    console.log(`  ✓ Valioz logo ${meta.width}x${meta.height}, ${buffer.length} bytes (${type})`);
+  } catch (error) {
+    fail(`[Valioz Health] logo ${VALIOZ.logoUrl}: ${error.message}`);
+  }
+}
+
+function validateCompiledMasters(expectedClinic) {
+  if (!fs.existsSync(COMPILED_DIR)) {
+    warn('compiled/ not found — run: node compile-templates.js');
+    return;
+  }
+  const files = fs.readdirSync(COMPILED_DIR).filter((file) => file.endsWith('.html'));
+  if (files.length !== STEPS.length) {
+    fail(`compiled/ expected ${STEPS.length} master templates, found ${files.length}`);
+  }
+  for (const step of STEPS) {
+    const file = path.join(COMPILED_DIR, step.output);
+    if (!fs.existsSync(file)) {
+      fail(`compiled/ missing ${step.output}`);
+      continue;
+    }
+    const html = fs.readFileSync(file, 'utf8');
+    if (!html.includes(VALIOZ.logoUrl)) fail(`compiled/${step.output} missing Valioz logo`);
+    if (expectedClinic) {
+      if (!html.includes(expectedClinic.clinic_logo_hosted_url)) {
+        fail(`compiled/${step.output} missing clinic logo`);
+      }
+      if (!html.includes(`Prepared for ${esc(expectedClinic.clinic_brand_name)}`)) {
+        fail(`compiled/${step.output} missing "Prepared for" label`);
+      }
+    }
+    if (/{{|}}/.test(html)) fail(`compiled/${step.output} contains unresolved tags`);
+    if ((html.match(/<img\b/gi) || []).length !== 2) {
+      fail(`compiled/${step.output} must contain exactly 2 images`);
+    }
+    for (const tag of ['table', 'tr', 'td']) {
+      const open = (html.match(new RegExp(`<${tag}\\b`, 'gi')) || []).length;
+      const close = (html.match(new RegExp(`</${tag}>`, 'gi')) || []).length;
+      if (open !== close) {
+        fail(`compiled/${step.output} ${tag} tags unbalanced (${open} open / ${close} close)`);
+      }
+    }
+    const text = htmlToText(html);
+    const marker = STEP_MARKERS[step.key];
+    if (marker && !text.includes(marker)) {
+      fail(`compiled/${step.output} missing ${step.key} body copy`);
+    }
+  }
 }
 
 async function main() {
@@ -96,50 +257,88 @@ async function main() {
     process.exit(1);
   }
 
-  const csvContent = fs.readFileSync(ENRICHED_CSV, 'utf8');
-  const clinics = csv.parse(csvContent, { columns: true, skip_empty_lines: true });
+  const rows = parse(fs.readFileSync(ENRICHED_CSV, 'utf8'), {
+    columns: true,
+    skip_empty_lines: true,
+    relax_column_count: true,
+  });
+  console.log(`📋 ${rows.length} enriched clinics\n`);
 
-  console.log(`\n📋 Validating ${clinics.length} enriched clinics...\n`);
-
-  // 1. Validate all clinic logo URLs
-  for (const clinic of clinics) {
-    const name = clinic.clinic_brand_name || 'Unknown';
-    await validateLogoUrl(clinic.clinic_logo_hosted_url, name);
+  const bySlug = new Map();
+  for (const row of rows) {
+    const slug = slugify(row.clinic_brand_name || '');
+    if (!slug) {
+      fail(`clinic has no usable slug: "${row.clinic_brand_name}"`);
+      continue;
+    }
+    if (bySlug.has(slug)) {
+      fail(`duplicate clinic slug "${slug}"`);
+      continue;
+    }
+    bySlug.set(slug, row);
+    if (!row.resolved_website_url) {
+      warn(`[${row.clinic_brand_name}] resolved_website_url is empty`);
+    }
   }
 
-  // 2. Validate compiled templates
-  console.log('\n📄 Validating compiled templates...\n');
-  if (fs.existsSync(DIST_DIR)) {
-    const clinicDirs = fs.readdirSync(DIST_DIR).filter((d) =>
-      fs.statSync(path.join(DIST_DIR, d)).isDirectory()
-    );
+  console.log('🖼  Checking hosted clinic logos...');
+  await mapLimit(rows, CONCURRENCY, validateClinicLogo);
+  await validateValiozLogo();
 
-    for (const dir of clinicDirs) {
-      const dirPath = path.join(DIST_DIR, dir);
-      const files = fs.readdirSync(dirPath).filter((f) => f.endsWith('.html'));
+  console.log('\n📄 Checking compiled HTML...');
+  if (!fs.existsSync(DIST_DIR)) {
+    fail('dist/personalized/ not found — run: npm run build');
+  } else {
+    const actualDirs = fs
+      .readdirSync(DIST_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
 
-      for (const file of files) {
-        const html = fs.readFileSync(path.join(dirPath, file), 'utf8');
-        validateTemplate(html, dir);
+    for (const slug of actualDirs) {
+      if (!bySlug.has(slug)) fail(`unexpected clinic directory: dist/personalized/${slug}`);
+    }
+
+    for (const [slug, row] of bySlug) {
+      const dir = path.join(DIST_DIR, slug);
+      if (!fs.existsSync(dir)) {
+        fail(`[${row.clinic_brand_name}] missing dist/personalized/${slug}/`);
+        continue;
+      }
+
+      const files = fs.readdirSync(dir).filter((file) => file.endsWith('.html'));
+      if (files.length !== STEPS.length) {
+        fail(`[${row.clinic_brand_name}] expected ${STEPS.length} files, found ${files.length}`);
+      }
+
+      for (const step of STEPS) {
+        const file = path.join(dir, step.output);
+        if (!fs.existsSync(file)) {
+          fail(`[${row.clinic_brand_name}] missing ${step.output}`);
+          continue;
+        }
+        validateHtml(fs.readFileSync(file, 'utf8'), row, step, file);
       }
     }
-  } else {
-    warn('dist/personalized/ not found — run build-templates.js first');
   }
 
-  // Summary
-  console.log('\n═════════════════════════════════════════════════════════════╗');
-  if (errors === 0 && warnings === 0) {
-    console.log('✅ ALL CHECKS PASSED — Templates ready for deployment');
+  validateCompiledMasters(bySlug.get('barrie-dental-arts'));
+
+  console.log('\n═════════════════════════════════════════════════════════════');
+  if (errors === 0) {
+    console.log(
+      warnings === 0
+        ? '✅ ALL CHECKS PASSED — Templates are ready to send'
+        : `✅ ALL CHECKS PASSED with ${warnings} warning(s)`
+    );
   } else {
-    console.log(`⚠️  ${errors} error(s), ${warnings} warning(s) found`);
+    console.log(`❌ ${errors} error(s), ${warnings} warning(s) — NOT ready to send`);
   }
   console.log('╚════════════════════════════════════════════════════════════╝\n');
 
   process.exit(errors > 0 ? 1 : 0);
 }
 
-main().catch((e) => {
-  console.error(e);
+main().catch((error) => {
+  console.error(`\n❌ ${error.stack || error.message}`);
   process.exit(1);
 });

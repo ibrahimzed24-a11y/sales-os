@@ -31,8 +31,8 @@
       .ctr    { text-align: center !important; }
       .hide   { display: none !important; }
       .btn a  { display: block !important; width: 100% !important; box-sizing: border-box !important; }
-      .logo-v { width: 132px !important; height: auto !important; }
-      .logo-c { width: 120px !important; height: auto !important; }
+      .logo-v { height: 40px !important; width: auto !important; max-width: 100% !important; }
+      .logo-c { height: 40px !important; width: auto !important; max-width: 100% !important; }
       .pad24  { padding: 24px !important; }
     }
   </style>
@@ -55,18 +55,22 @@
                style="background-color:{{V_CANVAS}};">
           <tr>
             <!-- Left cell: Valioz Health logo -->
-            <td align="left" width="50%" style="padding:8px 16px 8px 16px;">
-              <a href="{{V_SITE_URL}}" target="_blank" style="text-decoration:none;">
-                <img class="logo-v" src="{{V_LOGO_URL}}" alt="Valioz Health" width="176" height="48"
-                     style="width:176px; height:auto; display:block; border:0;">
+            <td align="left" valign="middle" width="50%" style="padding:8px 16px 8px 16px;">
+              <a href="{{V_BRAND_URL}}" target="_blank" style="text-decoration:none;">
+                <img class="logo-v" src="{{V_LOGO_URL}}" alt="Valioz Health" height="48"
+                     style="height:48px; width:auto; max-width:100%; display:block; border:0;">
               </a>
             </td>
-            <!-- Right cell: Target clinic logo -->
-            <td align="right" width="50%" style="padding:8px 16px 8px 16px;">
+            <!-- Right cell: Target clinic logo, labelled -->
+            <td align="right" valign="middle" width="50%" style="padding:8px 16px 8px 16px; text-align:right;">
               {{#if C_LOGO_URL}}
+              <div class="h-sans" style="font-size:10px; font-weight:700; letter-spacing:0.08em;
+                   text-transform:uppercase; color:{{V_MUTED}}; padding-bottom:4px;">
+                Prepared for {{C_NAME}}
+              </div>
               <a href="{{C_SITE_URL}}" target="_blank" style="text-decoration:none;">
-                <img class="logo-c" src="{{C_LOGO_URL}}" alt="{{C_NAME}} Logo" width="150" height="40"
-                     style="width:150px; height:auto; display:block; border:0;">
+                <img class="logo-c" src="{{C_LOGO_URL}}" alt="{{C_NAME}}" height="48"
+                     style="height:48px; width:auto; max-width:100%; display:block; border:0; margin-left:auto;">
               </a>
               {{/if}}
             </td>

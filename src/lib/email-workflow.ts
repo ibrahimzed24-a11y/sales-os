@@ -34,8 +34,9 @@ export const VALIOZ_BRAND = {
   coral: '#FB5F62',
   coralDeep: '#E05555',
   line: 'rgba(23, 44, 70, 0.12)',
-  logoUrl: 'https://health.valioz.com/assets/VALIOZ_Health_Primary.png',
-  logoWhiteUrl: 'https://health.valioz.com/assets/VALIOZ_Health_White.png',
+  logoUrl: 'https://health.valioz.com/wp-content/uploads/2026/11/valioz-logo-horizontal-en-navy.png',
+  // No white variant is published; keep this slot on the verified navy mark.
+  logoWhiteUrl: 'https://health.valioz.com/wp-content/uploads/2026/11/valioz-logo-horizontal-en-navy.png',
   siteUrl: 'https://health.valioz.com',
   address: 'Valioz Health · Yonge St, Toronto, ON M5B 2K9, Canada',
   fromEmail: process.env.SENDER_EMAIL || 'sales@health.valioz.com',
