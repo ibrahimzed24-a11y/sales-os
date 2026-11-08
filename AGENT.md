@@ -27,6 +27,10 @@ npm test                # pre-send QA (live HTTPS checks + HTML assertions)
 Order matters: `npm run build` consumes `data/dental-clinics-enriched.csv`, and
 `npm test` compares each hosted PNG against the local file byte-for-byte.
 
+Inside the combined `sales-os` repo these four commands are `npm run email:enrich`,
+`npm run email:build`, `npm run email:test`, and `npm run email:sync`; the root
+`build` and `test` scripts belong to the Next.js app.
+
 ### What `npm run enrich` guarantees
 
 - Waterfall: website header / JSON-LD → curated override → DSO badge → monogram.

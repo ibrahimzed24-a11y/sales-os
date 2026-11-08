@@ -27,12 +27,11 @@
     .h-sans  { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     @media only screen and (max-width: 600px) {
       .w600   { width: 100% !important; max-width: 100% !important; }
-      .stack  { display: block !important; width: 100% !important; }
+      .stack  { display: block !important; width: 100% !important; box-sizing: border-box !important; }
       .ctr    { text-align: center !important; }
       .hide   { display: none !important; }
       .btn a  { display: block !important; width: 100% !important; box-sizing: border-box !important; }
-      .logo-v { height: 40px !important; width: auto !important; max-width: 100% !important; }
-      .logo-c { height: 40px !important; width: auto !important; max-width: 100% !important; }
+      .logo-v, .logo-c { height: 40px !important; width: auto !important; max-width: 100% !important; margin-left: auto !important; margin-right: auto !important; }
       .pad24  { padding: 24px !important; }
     }
   </style>
@@ -55,14 +54,14 @@
                style="background-color:#FAF9F6;">
           <tr>
             <!-- Left cell: Valioz Health logo -->
-            <td align="left" valign="middle" width="50%" style="padding:8px 16px 8px 16px;">
+            <td class="stack ctr" align="left" valign="middle" width="50%" style="padding:8px 16px 8px 16px;">
               <a href="https://valioz.com" target="_blank" style="text-decoration:none;">
                 <img class="logo-v" src="https://health.valioz.com/wp-content/uploads/2026/11/valioz-logo-horizontal-en-navy.png" alt="Valioz Health" height="48"
                      style="height:48px; width:auto; max-width:100%; display:block; border:0;">
               </a>
             </td>
             <!-- Right cell: Target clinic logo, labelled -->
-            <td align="right" valign="middle" width="50%" style="padding:8px 16px 8px 16px; text-align:right;">
+            <td class="stack ctr" align="right" valign="middle" width="50%" style="padding:8px 16px 8px 16px; text-align:right;">
               <div class="h-sans" style="font-size:10px; font-weight:700; letter-spacing:0.08em;
                    text-transform:uppercase; color:#56667A; padding-bottom:4px;">
                 Prepared for Meadow Dental Care
