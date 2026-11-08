@@ -120,6 +120,9 @@ logos render, then send. The script never sends by itself.
 ## 5. Guardrails
 
 - Exactly two images per email: sender logo + clinic logo. Never add a third.
+- Every email footer links `WhatsApp +20 10 93272247` to
+  `https://wa.me/201093272247`. The number and URL live in `lib/valioz-brand.js`;
+  `npm run email:test` fails if either is missing and live-checks the link.
 - Every CTA links to a live page: audit buttons → `https://health.valioz.com/`,
   website review → `/contact/`, case study → `/insights/`, SEO/GEO → `/solutions/`.
   `npm run email:test` also checks each destination returns 200.

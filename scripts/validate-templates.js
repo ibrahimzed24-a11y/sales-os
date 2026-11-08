@@ -160,6 +160,12 @@ function validateHtml(html, row, step, file) {
   if (!html.includes(`href="${VALIOZ.brandUrl}"`)) {
     fail(`${label} Valioz logo is not linked to valioz.com`);
   }
+  if (!html.includes(`href="${VALIOZ.whatsappUrl}"`)) {
+    fail(`${label} WhatsApp link is missing`);
+  }
+  if (!html.includes(`WhatsApp ${VALIOZ.whatsappNumber}`)) {
+    fail(`${label} WhatsApp number is missing from the footer`);
+  }
   if (html.includes('/growth-audit')) {
     fail(`${label} CTA points at the removed /growth-audit page`);
   }
@@ -235,6 +241,12 @@ function validateCompiledMasters(expectedClinic) {
     }
     const html = fs.readFileSync(file, 'utf8');
     if (!html.includes(VALIOZ.logoUrl)) fail(`compiled/${step.output} missing Valioz logo`);
+    if (!html.includes(`href="${VALIOZ.whatsappUrl}"`)) {
+      fail(`compiled/${step.output} WhatsApp link is missing`);
+    }
+    if (!html.includes(`WhatsApp ${VALIOZ.whatsappNumber}`)) {
+      fail(`compiled/${step.output} WhatsApp number is missing from the footer`);
+    }
     if (expectedClinic) {
       if (!html.includes(expectedClinic.clinic_logo_hosted_url)) {
         fail(`compiled/${step.output} missing clinic logo`);
@@ -267,8 +279,13 @@ function validateCompiledMasters(expectedClinic) {
 }
 
 async function validateCtaDestinations(rows) {
-  const urls = new Set(STEPS.map((step) => contentForStep(step, rows[0]).ctaLink));
-  for (const url of urls) {
+  const links = [
+    ...[...new Set(STEPS.map((step) => contentForStep(step, rows[0]).ctaLink))].map(
+      (url) => ['CTA', url]
+    ),
+    ['WhatsApp', VALIOZ.whatsappUrl],
+  ];
+  for (const [label, url] of links) {
     try {
       const res = await fetch(url, {
         timeout: 20000,
@@ -276,9 +293,9 @@ async function validateCtaDestinations(rows) {
         headers: { 'user-agent': 'ValiozTemplateQA/1.0' },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      console.log(`  ✓ CTA ${url} (${res.status})`);
+      console.log(`  ✓ ${label} ${url} (${res.status})`);
     } catch (error) {
-      fail(`[CTA] ${url}: ${error.message}`);
+      fail(`[${label}] ${url}: ${error.message}`);
     }
   }
 }
