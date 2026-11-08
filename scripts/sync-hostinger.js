@@ -177,8 +177,8 @@ async function syncTemplates() {
   const token = process.env.HOSTINGER_REACH_TOKEN;
   const profile = process.env.HOSTINGER_REACH_PROFILE;
   if (!token || !profile) {
-    console.log('\nHostinger Reach not configured; files are ready to paste into');
-    console.log('Webmail → Settings → Templates and → Signature.');
+    console.log('\nHostinger Reach not configured; files are ready to paste through');
+    console.log('the composer (Templates → New template; paid feature) and Settings → Signature.');
     console.log('Set HOSTINGER_REACH_TOKEN + HOSTINGER_REACH_PROFILE to create missing Reach templates.');
     return;
   }

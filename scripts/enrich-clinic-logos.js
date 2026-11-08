@@ -308,7 +308,9 @@ async function findClinicWebsite(clinic) {
 }
 
 async function discoverDomain(clinic) {
-  const direct = normalizeUrl(clinic.direct_clinic_url);
+  const rawDirect = normalizeUrl(clinic.direct_clinic_url);
+  // A booking or directory profile is not the clinic's own website.
+  const direct = rawDirect && !isDirectory(rawDirect) ? rawDirect : null;
   const emailDomain = extractEmailDomain(clinic.clinic_email);
   const emailCandidates = emailDomain
     ? [`https://${emailDomain}/`, `https://www.${emailDomain}/`]

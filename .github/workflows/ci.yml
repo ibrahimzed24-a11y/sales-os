@@ -38,3 +38,6 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Module-scope guard in src/lib/auth-utils.ts; not used at runtime.
+          JWT_SECRET: ci-build-only-secret-not-used-in-production

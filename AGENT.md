@@ -78,8 +78,10 @@ contain that clinic's logo. Other clinics must use their own
 `dist/personalized/<slug>/` file; do not reuse a Barrie master for a different
 clinic.
 
-Paste each file into **Hostinger Webmail → Settings → Templates**, using the
-exact title from the manifest, and paste `signature.html` into
+Paste each file through the composer's **Templates → New template** menu
+(Hostinger calls these "email templates", not "signatures"), using the exact
+title from the manifest. Templates are a **paid Hostinger feature** — on the
+free plan the button opens an upgrade wall. Paste `signature.html` into
 **Settings → Signature**. Keep the sender as `sales@health.valioz.com`.
 
 Optional Reach API sync (creates only missing titles; the API cannot update an

@@ -5,8 +5,13 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
+const UUID_ID_PREFIXES = new Set(['acc', 'con', 'deal', 'act', 'prod', 'quote', 'pb']);
+
 export function uid(prefix: string): string {
-  return ['acc', 'con', 'deal', 'act', 'prod', 'quote', 'pb'].includes(prefix) ? crypto.randomUUID() : `${prefix}_${crypto.randomUUID().replace(/-/g, '').slice(0, 14)}`;
+  // These tables use Postgres UUID columns, so a prefixed ID cannot be stored.
+  return UUID_ID_PREFIXES.has(prefix)
+    ? crypto.randomUUID()
+    : `${prefix}_${crypto.randomUUID().replace(/-/g, '').slice(0, 14)}`;
 }
 
 export function num(v: string | undefined): number {

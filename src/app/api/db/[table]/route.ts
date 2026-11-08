@@ -64,7 +64,6 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATES = ['createdAt', 'preparedAt', 'sentAt', 'lastContactedAt'];
 const NUMS = ['size', 'annualRevenue', 'leadScore', 'dailyLimit'];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const M = (name: string) => (prisma as any)[name];
 
 function signedIn(req: Request): boolean {

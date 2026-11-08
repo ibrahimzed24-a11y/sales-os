@@ -4,11 +4,17 @@ import { uid, money, fmtDate, daysSince, initials, toCSV, parseCSV, num } from '
 describe('utils', () => {
   describe('uid', () => {
     it('generates unique IDs with prefix', () => {
-      const a = uid('deal');
-      const b = uid('deal');
-      expect(a.startsWith('deal_')).toBe(true);
-      expect(b.startsWith('deal_')).toBe(true);
+      const a = uid('note');
+      const b = uid('note');
+      expect(a.startsWith('note_')).toBe(true);
+      expect(b.startsWith('note_')).toBe(true);
       expect(a).not.toBe(b);
+    });
+
+    it('returns bare UUIDs for database-backed prefixes', () => {
+      expect(uid('deal')).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      );
     });
 
     it('generates IDs of consistent length', () => {

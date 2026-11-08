@@ -130,8 +130,16 @@ async function validateClinicLogo(row) {
     if (!fs.existsSync(localFile)) {
       throw new Error(`local asset missing: assets/clinic-logos/${slug}.png`);
     }
-    if (sha256(fs.readFileSync(localFile)) !== sha256(buffer)) {
-      throw new Error('hosted image differs from local asset — commit and push assets');
+    const localHash = sha256(fs.readFileSync(localFile));
+    if (localHash !== sha256(buffer)) {
+      // GitHub's /main/ raw CDN can serve stale bytes for minutes after a
+      // push; /refs/heads/main/ reads the branch head directly.
+      const freshUrl = url.replace('/main/', '/refs/heads/main/');
+      const fresh = freshUrl !== url ? (await fetchImage(freshUrl)).buffer : null;
+      if (!fresh || sha256(fresh) !== localHash) {
+        throw new Error('hosted image differs from local asset — commit and push assets');
+      }
+      warn(`[${name}] /main/ served stale bytes; /refs/heads/main/ matches the local asset`);
     }
   } catch (error) {
     fail(`[${name}] ${error.message} — ${url}`);
