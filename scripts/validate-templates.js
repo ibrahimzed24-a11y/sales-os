@@ -20,7 +20,7 @@ const { parse } = require('csv-parse/sync');
 const fetch = require('node-fetch');
 const sharp = require('sharp');
 const { STEP_MARKERS, htmlToText } = require('../lib/builder');
-const { STEPS, slugify, esc } = require('../lib/sequence-content');
+const { STEPS, slugify, esc, contentForStep } = require('../lib/sequence-content');
 const VALIOZ = require('../lib/valioz-brand');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -160,6 +160,13 @@ function validateHtml(html, row, step, file) {
   if (!html.includes(`href="${VALIOZ.brandUrl}"`)) {
     fail(`${label} Valioz logo is not linked to valioz.com`);
   }
+  if (html.includes('/growth-audit')) {
+    fail(`${label} CTA points at the removed /growth-audit page`);
+  }
+  const { ctaLink } = contentForStep(step, row);
+  if (!html.includes(`href="${ctaLink}"`)) {
+    fail(`${label} CTA does not link to ${ctaLink}`);
+  }
   for (const img of html.match(/<img\b[^>]*>/gi) || []) {
     if (!/height="48"/.test(img)) fail(`${label} header logo height attribute is not 48`);
     if (!/height:\s*48px/i.test(img)) fail(`${label} header logo CSS height is not 48px`);
@@ -235,6 +242,10 @@ function validateCompiledMasters(expectedClinic) {
       if (!html.includes(`Prepared for ${esc(expectedClinic.clinic_brand_name)}`)) {
         fail(`compiled/${step.output} missing "Prepared for" label`);
       }
+      const { ctaLink } = contentForStep(step, expectedClinic);
+      if (!html.includes(`href="${ctaLink}"`)) {
+        fail(`compiled/${step.output} CTA does not link to ${ctaLink}`);
+      }
     }
     if (/{{|}}/.test(html)) fail(`compiled/${step.output} contains unresolved tags`);
     if ((html.match(/<img\b/gi) || []).length !== 2) {
@@ -251,6 +262,23 @@ function validateCompiledMasters(expectedClinic) {
     const marker = STEP_MARKERS[step.key];
     if (marker && !text.includes(marker)) {
       fail(`compiled/${step.output} missing ${step.key} body copy`);
+    }
+  }
+}
+
+async function validateCtaDestinations(rows) {
+  const urls = new Set(STEPS.map((step) => contentForStep(step, rows[0]).ctaLink));
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        timeout: 20000,
+        redirect: 'follow',
+        headers: { 'user-agent': 'ValiozTemplateQA/1.0' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      console.log(`  ✓ CTA ${url} (${res.status})`);
+    } catch (error) {
+      fail(`[CTA] ${url}: ${error.message}`);
     }
   }
 }
@@ -292,6 +320,8 @@ async function main() {
   console.log('🖼  Checking hosted clinic logos...');
   await mapLimit(rows, CONCURRENCY, validateClinicLogo);
   await validateValiozLogo();
+  console.log('🔗 Checking CTA destinations...');
+  await validateCtaDestinations(rows);
 
   console.log('\n📄 Checking compiled HTML...');
   if (!fs.existsSync(DIST_DIR)) {

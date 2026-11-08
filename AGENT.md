@@ -120,6 +120,9 @@ logos render, then send. The script never sends by itself.
 ## 5. Guardrails
 
 - Exactly two images per email: sender logo + clinic logo. Never add a third.
+- Every CTA links to a live page: audit buttons → `https://health.valioz.com/`,
+  website review → `/contact/`, case study → `/insights/`, SEO/GEO → `/solutions/`.
+  `npm run email:test` also checks each destination returns 200.
 - Do not reintroduce `https://health.valioz.com/assets/VALIOZ_Health_Primary.png`
   (404) or `valioz-logo-navy.webp` (obsolete).
 - Do not send until the new PNGs are committed and pushed; raw GitHub URLs are
