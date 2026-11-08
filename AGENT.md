@@ -7,9 +7,8 @@ five Hostinger masters in `dist/hostinger/templates/`.
 ## 1. Prerequisites
 
 ```bash
-cd sales-os-email-workflow
 npm install
-node --version        # 18+
+node --version        # 22.22+ (jsdom 31 requires it)
 ```
 
 `sharp` must be installed with librsvg support (the monogram fallback renders
@@ -18,18 +17,15 @@ text through SVG).
 ## 2. Full pipeline
 
 ```bash
-npm run enrich          # discover + convert + self-host 138 clinic logos
+npm run email:enrich   # discover + convert + self-host 138 clinic logos
 node compile-templates.js
-npm run build           # 138 clinics × 5 personalized emails
-npm test                # pre-send QA (live HTTPS checks + HTML assertions)
+npm run email:build    # 138 clinics × 5 personalized emails
+npm run email:test     # pre-send QA (live HTTPS checks + HTML assertions)
 ```
 
-Order matters: `npm run build` consumes `data/dental-clinics-enriched.csv`, and
-`npm test` compares each hosted PNG against the local file byte-for-byte.
-
-Inside the combined `sales-os` repo these four commands are `npm run email:enrich`,
-`npm run email:build`, `npm run email:test`, and `npm run email:sync`; the root
-`build` and `test` scripts belong to the Next.js app.
+Order matters: `npm run email:build` consumes `data/dental-clinics-enriched.csv`,
+and `npm run email:test` compares each hosted PNG against the local file
+byte-for-byte. The root `build` and `test` scripts belong to the Next.js app.
 
 ### What `npm run enrich` guarantees
 
@@ -43,7 +39,7 @@ Inside the combined `sales-os` repo these four commands are `npm run email:enric
 Never hotlink a clinic's raw logo in an email. The email only uses the
 `raw.githubusercontent.com/.../assets/clinic-logos/<slug>.png` copy.
 
-### What `npm test` rejects
+### What `npm run email:test` rejects
 
 - Non-HTTPS, non-PNG, non-200, >180×60, or >50 KB logo.
 - Hosted bytes that differ from the committed local asset.
@@ -112,7 +108,7 @@ logos render, then send. The script never sends by itself.
 
 ## 4. Verify before claiming success
 
-1. `npm test` ends with **ALL CHECKS PASSED**.
+1. `npm run email:test` ends with **ALL CHECKS PASSED**.
 2. Open the personalized HTML and confirm exactly two images:
    - left: `health.valioz.com/wp-content/uploads/2026/11/valioz-logo-horizontal-en-navy.png`
    - right: the clinic's `raw.githubusercontent.com/.../assets/clinic-logos/<slug>.png`
@@ -129,6 +125,6 @@ logos render, then send. The script never sends by itself.
 - Do not send until the new PNGs are committed and pushed; raw GitHub URLs are
   what the email loads.
 - `data/dental-clinics.csv` is input; edit `data/dental-clinics-enriched.csv`
-  only through `npm run enrich` or a curated override in `config/logo-overrides.json`.
+  only through `npm run email:enrich` or a curated override in `config/logo-overrides.json`.
 - `src/lib/email-workflow.ts` is the legacy Sales OS integration. The canonical
   pipeline is the Node scripts above.
