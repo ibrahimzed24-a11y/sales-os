@@ -61,6 +61,7 @@ async function handleInner(req: Request, ctx: Ctx, method: 'GET' | 'POST') {
     if (method === 'POST' && route === 'leads') return await leads(req);
     if (method === 'POST' && route === 'preview') return await preview(req);
     if (method === 'POST' && route === 'send') return await send(req);
+    if (method === 'POST' && route === 'test-once') return await testOnce(req);
     if (method === 'POST' && route === 'status') return await setStatus(req);
     return json({ error: 'not_found' }, 404);
   } catch (err) {
@@ -381,6 +382,43 @@ async function send(req: Request) {
   }
   await x('update campaigns set status=\'completed\', notes=$2, updated_at=now() where id=$1', campaignId, 'sent ' + sent + ', failed ' + failed + ', bounced ' + bounced + ', duplicates ' + duplicates);
   return json({ campaignId, campaignName, sent, failed, bounced, duplicates, results });
+}
+
+// ---------- one-time test-email exception (audited) ----------
+// Permits exactly ONE email, ever, to TEST_TO, for any signed-in user. Fixed content; no contacts,
+// templates, campaigns, schedules or other recipients. send() and its 409 CASL gate are untouched.
+// The single use is claimed atomically by inserting a campaigns row with a fixed id (the audit record).
+const TEST_TO = 'ibrahim.zed24@gmail.com';
+const TEST_ONCE_ID = '7e57a11e-0000-4000-8000-000000000e11';
+async function testOnce(req: Request) {
+  const b = await req.json();
+  if (b.confirm !== 'SEND_ONE_TEST' || s(b.to).toLowerCase() !== TEST_TO) {
+    return json({ error: 'Only the single approved test recipient is allowed.' }, 403);
+  }
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return json({ error: 'RESEND_API_KEY is not configured. Nothing was sent.' }, 500);
+  const subject = 'Sales OS test email';
+  const claim = await q(
+    'insert into campaigns (owner_id, id, name, status, subject, template_id, audience, daily_limit, notes) values (__UID__, $1,$2,\'sending\',$3,null,$4::jsonb,1,$5) on conflict do nothing returning id',
+    TEST_ONCE_ID, 'ONE-TIME TEST EXCEPTION', subject, JSON.stringify({ contacts: 1, to: TEST_TO }), 'claimed ' + new Date().toISOString(),
+  );
+  if (!claim.length) return json({ error: 'The one-time test exception has already been used.', used: true }, 409);
+  console.warn('send-os test-once: exception claimed by user', ctxStore.getStore()?.uid, 'to', TEST_TO);
+  try {
+    const res = await new Resend(apiKey).emails.send({
+      from: FROM,
+      to: TEST_TO,
+      subject,
+      text: 'This is a single test email sent from Sales OS to confirm delivery. No action is needed.',
+    });
+    if (res.error) throw new Error(res.error.message);
+    await x('update campaigns set status=\'completed\', notes=$2, updated_at=now() where id=$1', TEST_ONCE_ID, 'sent ' + new Date().toISOString() + ' provider id ' + (res.data?.id ?? ''));
+    return json({ ok: true, sent: 1, to: TEST_TO, id: res.data?.id ?? '' });
+  } catch (err) {
+    const msg = (err instanceof Error ? err.message : 'send failed').slice(0, 300);
+    await x('update campaigns set status=\'failed\', notes=$2, updated_at=now() where id=$1', TEST_ONCE_ID, 'failed ' + new Date().toISOString() + ': ' + msg);
+    return json({ ok: false, error: msg }, 502);
+  }
 }
 
 // ---------- statuses, history, opt-out ----------
