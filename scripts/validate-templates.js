@@ -21,6 +21,7 @@ const fetch = require('node-fetch');
 const sharp = require('sharp');
 const { STEP_MARKERS, htmlToText } = require('../lib/builder');
 const { STEPS, slugify, esc, contentForStep } = require('../lib/sequence-content');
+const { researchFor } = require('../lib/clinic-research');
 const VALIOZ = require('../lib/valioz-brand');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -329,6 +330,9 @@ async function main() {
       continue;
     }
     bySlug.set(slug, row);
+    if (!researchFor(row).matched) {
+      fail(`[${row.clinic_brand_name}] missing data/clinic-research.csv row`);
+    }
     if (!row.resolved_website_url) {
       warn(`[${row.clinic_brand_name}] resolved_website_url is empty`);
     }

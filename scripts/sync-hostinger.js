@@ -21,6 +21,7 @@ const path = require('path');
 const { parse } = require('csv-parse/sync');
 const { buildClinic, htmlToText } = require('../lib/builder');
 const { STEPS, slugify, subjectForStep, contactNameFor } = require('../lib/sequence-content');
+const { researchFor } = require('../lib/clinic-research');
 const VALIOZ = require('../lib/valioz-brand');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -264,6 +265,22 @@ async function composeLead() {
   console.log(`✓ Draft for ${clinic.clinic_brand_name}`);
   console.log(`  To: ${to}`);
   console.log(`  Subject: ${subject}`);
+  const research = researchFor(clinic);
+  console.log(
+    `  Priority: ${research.score ? `${research.score}/100 · ${research.tier || 'no tier'}` : 'not scored'}`
+  );
+  if (research.verificationStatus) {
+    console.log(
+      `  Verification: ${research.verificationStatus}${research.verifiedOn ? ` (${research.verifiedOn})` : ''}`
+    );
+  }
+  if (research.evidenceHook) console.log(`  Evidence hook: ${research.evidenceHook}`);
+  if (research.sendStatus) console.log(`  Send status: ${research.sendStatus}`);
+  if (/^hold/i.test(research.sendStatus)) {
+    console.log('  ⚠ Do not send until the site status is confirmed.');
+  } else if (research.websiteState === 'broken') {
+    console.log('  ⚠ Confirm the site still fails before sending.');
+  }
   console.log(`  Import: ${path.relative(ROOT, emlFile)}`);
   console.log(`  Preview: ${path.relative(ROOT, htmlFile)}`);
   console.log('\nOpen the .eml in Hostinger (or drag it into the composer), verify both logos,');

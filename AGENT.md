@@ -32,6 +32,13 @@ snapshot, patient journey, VALIOZ difference, ownership, pricing and reply-YES
 CTA — lives once in `lib/offer-content.js`. Edit the offer there, not in the
 five content blocks.
 
+`data/clinic-research.csv` carries the lead score, tier, verification status,
+curated hooks and send status. `lib/clinic-research.js` joins it by clinic name
+and supplies the personalized reputation, coverage, website and search-term
+lines used in the first two emails. Source: the 2026-11-09 Dental Demand
+Intelligence run. Its Keyword Planner values are Canada-wide bucket ranges, not
+city or province data; never present them as local.
+
 ### What `npm run enrich` guarantees
 
 - Waterfall: website header / JSON-LD → curated override → DSO badge → monogram.
@@ -51,7 +58,10 @@ Never hotlink a clinic's raw logo in an email. The email only uses the
 - Fewer/more than two `<img>` tags, missing Valioz or clinic logo, missing
   `Prepared for <clinic>`, unresolved `{{TAG}}` values.
 - Flexbox/grid, unbalanced table markup, missing HIPAA notice or unsubscribe link.
-- Missing body copy for any of the five steps.
+- Missing body copy for any of the five steps, or a clinic with no
+  `data/clinic-research.csv` row.
+- A live website lead that falls back to the old “missing a dedicated website”
+  claim, or a missing personalized reputation/coverage/site line.
 
 ## 3. Hostinger sync
 
@@ -133,6 +143,9 @@ logos render, then send. The script never sends by itself.
   `npm run email:test` also checks each destination returns 200.
 - Do not reintroduce `https://health.valioz.com/assets/VALIOZ_Health_Primary.png`
   (404) or `valioz-logo-navy.webp` (obsolete).
+- Do not paste raw `verification_status`, `evidence_hook` or `evidence_observed`
+  into email copy — they contain operator notes. The email uses the derived
+  reputation/coverage lines and a neutral website line instead.
 - Do not send until the new PNGs are committed and pushed; raw GitHub URLs are
   what the email loads.
 - `data/dental-clinics.csv` is input; edit `data/dental-clinics-enriched.csv`
