@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { verifyToken } from '@/lib/auth-utils';
+import { sendReadiness } from '@/lib/send-safeguards';
 
 const FROM_EMAIL = process.env.SENDER_EMAIL || 'sales@health.valioz.com';
 
@@ -24,6 +25,12 @@ export async function POST(req: Request) {
 
   if (session.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Sending emails is limited to administrators.' }, { status: 403 });
+  }
+
+  // CASL safeguard: no send without a valid legal name, mailing address and an enabled unsubscribe link.
+  const gate = sendReadiness();
+  if (!gate.ok) {
+    return NextResponse.json({ error: 'Sending is blocked: ' + gate.reasons.join(' '), blocked: true, reasons: gate.reasons }, { status: 409 });
   }
 
   const resend = getResend();
