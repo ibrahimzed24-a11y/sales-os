@@ -14,6 +14,7 @@
 
 import { renderTemplate, subjectFromHtml, categoryFromFile, Vars } from './campaign';
 import { CLINIC_BRANDS, ClinicBrand, resolveClinicBrand } from './clinic-brands';
+import { VALIOZ_CTA, VALIOZ_OFFER, VALIOZ_UNSUBSCRIBE_URL_TEMPLATE, SUPPRESSED_CASL, sendReadiness } from './send-safeguards';
 import fs from 'fs';
 import path from 'path';
 
@@ -21,7 +22,7 @@ const TEMPLATE_DIR = path.join(process.cwd(), 'src/lib/email-templates');
 
 // ---------- Valioz sender brand (from VALIOZ_Health_Brand_Kit_V2 / BRAND_TOKENS.json) ----------
 export const VALIOZ_BRAND = {
-  name: 'Valioz Health',
+  name: 'VALIOZ Health',
   navy: '#172C46',
   navyDeep: '#0F1F33',
   turquoise: '#00AFA5',
@@ -38,7 +39,8 @@ export const VALIOZ_BRAND = {
   // No white variant is published; keep this slot on the verified navy mark.
   logoWhiteUrl: 'https://health.valioz.com/wp-content/uploads/2026/11/valioz-logo-horizontal-en-navy.png',
   siteUrl: 'https://health.valioz.com',
-  address: 'Valioz Health · Yonge St, Toronto, ON M5B 2K9, Canada',
+  // Never hard-coded: comes from VALIOZ_MAILING_ADDRESS and is validated by sendReadiness() before any send.
+  address: (process.env.VALIOZ_MAILING_ADDRESS ?? '').trim(),
   fromEmail: process.env.SENDER_EMAIL || 'sales@health.valioz.com',
 } as const;
 
@@ -179,8 +181,9 @@ export function renderEmail(
     proof_label: step.framework === 'PAS' ? 'Our typical result' : 'The outcome',
     stat_copy: statCopyForStep(step),
     ps_copy: psCopyForStep(step),
-    cta_link: `https://health.valioz.com${step.ctaLink}`,
-    cta_text: step.cta,
+    cta_link: `mailto:${VALIOZ_BRAND.fromEmail}?subject=YES`,
+    cta_text: VALIOZ_CTA,
+    offer_label: VALIOZ_OFFER.label,
     unsubscribe_link: unsubscribeUrl,
   };
 
@@ -262,9 +265,11 @@ function bodyCopyForStep(step: EmailStep, clinicName: string): string {
 }
 
 // ---------- Build unsubscribe URL ----------
+// Returns '' while the unsubscribe page is not enabled (VALIOZ_UNSUBSCRIBE_ENABLED !== 'true'): no send may proceed with an empty link.
 export function buildUnsubscribeUrl(contact: EmailContact, campaignId: string, stepDay: number): string {
-  const emailId = `${campaignId}-d${stepDay}-c${contact.id}`;
-  return `https://osv.nilesupplies.com/unsubscribe?email=${encodeURIComponent(contact.email)}&token=${emailId}`;
+  if (process.env.VALIOZ_UNSUBSCRIBE_ENABLED !== 'true') return '';
+  const leadToken = `${campaignId}-d${stepDay}-c${contact.id}`;
+  return VALIOZ_UNSUBSCRIBE_URL_TEMPLATE.replace('{{lead_token}}', encodeURIComponent(leadToken));
 }
 
 // ---------- Campaign runner ----------
@@ -274,6 +279,7 @@ export interface CampaignRunResult {
   failed: number;
   campaignId: string;
   dryRun?: boolean;
+  blocked?: string[];
 }
 
 export async function runSequence({
@@ -291,8 +297,17 @@ export async function runSequence({
 }): Promise<CampaignRunResult> {
   console.log(`[email-workflow] Starting Valioz 30-day dual-brand sequence (campaign: ${campaignId})`);
 
+  // CASL safeguard: a real send needs a valid legal name, mailing address and a working unsubscribe link.
+  if (!dryRun) {
+    const gate = sendReadiness();
+    if (!gate.ok) {
+      console.error(`[email-workflow] BLOCKED: ${gate.reasons.join(' ')}`);
+      return { queued: 0, sent: 0, failed: 0, campaignId, dryRun, blocked: gate.reasons };
+    }
+  }
+
   const eligible = contacts.filter(c =>
-    c.status !== 'unsubscribed' && c.status !== 'bounced' && c.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)
+    c.status !== 'unsubscribed' && c.status !== 'bounced' && c.status !== SUPPRESSED_CASL && c.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)
   );
   console.log(`[email-workflow] ${eligible.length} eligible contacts`);
 
@@ -312,6 +327,7 @@ export async function runSequence({
       queued++;
 
       if (dryRun) continue;
+      if (!unsubscribeUrl) { failed++; continue; } // never send without an unsubscribe link
 
       try {
         if (sendFn) {
