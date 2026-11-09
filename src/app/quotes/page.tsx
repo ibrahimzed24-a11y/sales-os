@@ -7,6 +7,7 @@ import { cn, dateInput, fmtDate, money, num, uid } from '@/lib/utils';
 import { Badge, Button, Card, FormModal, inputCls, Modal, PageHeader } from '@/components/ui';
 import { toast } from 'sonner';
 import { dbCall } from '@/lib/api';
+import { VALIOZ_OFFER, VALIOZ_BRAND_NAME } from '@/lib/send-safeguards';
 import type { BillingCycle, Product, ProductKind, Quote, QuoteItem, QuoteStatus } from '@/types/sales-os';
 
 function calcQuote(items: QuoteItem[], taxRate: number) {
@@ -64,6 +65,13 @@ export default function QuotesPage() {
           </>
         }
       />
+      <Card className="mb-4 p-4 text-sm">
+        <div className="font-medium">{VALIOZ_BRAND_NAME} offer (reference, dry-run only)</div>
+        <div className="mt-1 text-muted">
+          ${VALIOZ_OFFER.packagePriceCad} {VALIOZ_OFFER.currency} package · first {VALIOZ_OFFER.freeDays} days free · then optional ${VALIOZ_OFFER.optionalMonthlyCad} {VALIOZ_OFFER.currency}/month
+        </div>
+        <div className="mt-1 text-muted">{VALIOZ_OFFER.cta}</div>
+      </Card>
       {tab === 'quotes' ? (
         <Card className="overflow-x-auto">
           <table className="w-full text-sm">
