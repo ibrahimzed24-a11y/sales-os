@@ -27,6 +27,11 @@ Order matters: `npm run email:build` consumes `data/dental-clinics-enriched.csv`
 and `npm run email:test` compares each hosted PNG against the local file
 byte-for-byte. The root `build` and `test` scripts belong to the Next.js app.
 
+Sequence copy lives in `lib/sequence-content.js`. The shared offer — search
+snapshot, patient journey, VALIOZ difference, ownership, pricing and reply-YES
+CTA — lives once in `lib/offer-content.js`. Edit the offer there, not in the
+five content blocks.
+
 ### What `npm run enrich` guarantees
 
 - Waterfall: website header / JSON-LD → curated override → DSO badge → monogram.
