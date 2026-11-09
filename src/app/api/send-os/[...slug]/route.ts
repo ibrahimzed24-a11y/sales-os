@@ -5,6 +5,7 @@ import { Resend } from 'resend';
 import { prisma } from '@/lib/prisma';
 import { getSessionFromCookie, JWT_SECRET } from '@/lib/auth-utils';
 import { EMAIL_RE, MAX_PER_RUN, VARIABLES, htmlToText, renderTemplate, tokensIn, type Vars } from '@/lib/campaign';
+import { sendReadiness } from '@/lib/send-safeguards';
 
 // One catch-all API for the lead -> template -> campaign workflow:
 //   GET  templates | history | unsub (public, signed link)
@@ -308,6 +309,9 @@ async function send(req: Request) {
   const b = await req.json();
   if (ctxStore.getStore()?.role !== 'ADMIN') return json({ error: 'Sending emails is limited to administrators.' }, 403);
   if (b.confirm !== 'SEND') return json({ error: 'Sending needs explicit confirmation' }, 400);
+  // CASL safeguard: no send without a valid legal name, mailing address and an enabled unsubscribe link.
+  const gate = sendReadiness();
+  if (!gate.ok) return json({ error: 'Sending is blocked: ' + gate.reasons.join(' '), blocked: true, reasons: gate.reasons }, 409);
   const templateId = s(b.templateId);
   const ids: string[] = Array.isArray(b.contactIds) ? b.contactIds.map((v: unknown) => s(v)).filter(Boolean) : [];
   if (!ids.length) return json({ error: 'No recipients selected' }, 400);
