@@ -39,6 +39,17 @@ lines used in the first two emails. Source: the 2026-11-09 Dental Demand
 Intelligence run. Its Keyword Planner values are Canada-wide bucket ranges, not
 city or province data; never present them as local.
 
+Website-state segregation (journey step 01 "Your own custom website"):
+- `lib/offer-content.js` exports `offerBlock({ hasWebsite })`. When
+  `research.websiteState === 'live'`, step 01 is hidden and the remaining
+  journey steps renumber from 1 — clinics with a running site are never
+  offered a custom website.
+- When `websiteState` is `broken` or `unknown`, step 01 is shown as journey
+  item 1 — clinics without a confirmed live website are offered a custom
+  website.
+- `lib/sequence-content.js` computes `hasWebsite` from
+  `research.websiteState === 'live'` and passes it to `offerBlock()`.
+
 ### What `npm run enrich` guarantees
 
 - Waterfall: website header / JSON-LD → curated override → DSO badge → monogram.
