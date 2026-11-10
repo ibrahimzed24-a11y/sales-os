@@ -17,6 +17,7 @@ import { useStore } from '@/lib/store';
 import { computeKpis, forecastByMonth, funnel, isOpen, isStale, velocity } from '@/lib/metrics';
 import { fmtDate, money } from '@/lib/utils';
 import { Badge, Card, PageHeader } from '@/components/ui';
+import { Bot, Send, ArrowRight } from 'lucide-react';
 
 export function Dashboard() {
   const deals = useStore((s) => s.deals);
@@ -52,6 +53,38 @@ export function Dashboard() {
   return (
     <>
       <PageHeader title="Command Center" subtitle="Your revenue at a glance" />
+
+      {/* Autonomous 5-Agent Fleet Status Banner */}
+      <div className="mb-5 rounded-xl border border-teal-500/20 bg-panel p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
+              <Bot className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold">Autonomous Outreach Specialist Fleet</h3>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                  5 Agents Active
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-muted">
+                10 Canadian dental practices scheduled per active day (Tue/Wed/Thu @ 08:00 AM local time).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/send"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+            >
+              Open Mission Control <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
         {cards.map(([label, value, sub]) => (
           <Card key={label} className="p-4">

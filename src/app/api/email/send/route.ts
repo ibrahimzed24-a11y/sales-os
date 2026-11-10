@@ -3,6 +3,8 @@ import { Resend } from 'resend';
 import { verifyToken } from '@/lib/auth-utils';
 import { sendReadiness } from '@/lib/send-safeguards';
 
+export const dynamic = 'force-dynamic';
+
 const FROM_EMAIL = process.env.SENDER_EMAIL || 'sales@health.valioz.com';
 
 function getResend(): Resend | null {

@@ -29,10 +29,10 @@ import { ContactFormModal, DealFormModal, ActivityFormModal } from '@/components
 
 export const NAV = [
   { href: '/', label: 'Command Center', icon: LayoutDashboard },
+  { href: '/send', label: 'AI Agents & Outreach', icon: Send },
   { href: '/pipeline', label: 'Pipeline', icon: Kanban },
   { href: '/contacts', label: 'Contacts', icon: Users },
   { href: '/accounts', label: 'Accounts', icon: Building2 },
-  { href: '/send', label: 'Send Emails', icon: Send },
   { href: '/campaigns', label: 'Campaigns', icon: Mail },
   { href: '/activities', label: 'Activities', icon: CheckSquare },
   { href: '/quotes', label: 'Quotes & Catalog', icon: FileText },
