@@ -1,0 +1,360 @@
+================================================================================
+VALIOZ HEALTH - CANADIAN DENTAL COLD OUTREACH
+PROJECT SUMMARY
+Generated: 2026-11-10 05:40 Cairo (03:40 UTC)  |  Code snapshot: 79630bd
+================================================================================
+
+1. OBJECTIVE
+--------------------------------------------------------------------------------
+Send cold outreach to independent Canadian dental clinics and book free growth
+audits for Valioz Health.
+
+Target cadence:
+  - Every Tuesday, Wednesday and Thursday (active days only).
+  - Exactly 10 clinics per active day.
+  - Each email lands at 08:00 in the clinic's own Canadian time zone.
+  - One personalized email per clinic, never a bulk blast.
+  - Every clinic is used once; the tracker is the source of truth.
+
+Offer: a free growth audit -> https://health.valioz.com/
+Sender: sales@health.valioz.com (Hostinger webmail).
+
+
+2. NON-NEGOTIABLE RULES
+--------------------------------------------------------------------------------
+- 10 distinct clinics per day. Verified, uncontacted, non-DSO.
+- Address the Principal Dentist or Practice Manager from real clinic data.
+  Never invent a name, title, patient count, revenue figure or statistic.
+- The clinic must be independent. A "parent_dso == Independent" flag is trusted
+  but spot-checked; known DSO members are excluded by hand.
+- Subject and body must be clinic-specific (clinic name, city, real site).
+- Never offer "Your own custom website" to a clinic that already has a live
+  website. That journey step is only for broken or unknown sites.
+- "Book Your Free Growth Audit" always links to https://health.valioz.com/.
+- Keep the unsubscribe link: https://health.valioz.com/unsubscribe/
+- Keep the HIPAA notice and the WhatsApp link +20 10 93272247 ->
+  https://wa.me/201093272247
+- Do not use Hostinger's calendar or schedule-send (premium-gated). Scheduling
+  is done locally, sending is done in the signed-in webmail session.
+
+
+3. PIPELINE
+--------------------------------------------------------------------------------
+  research CSV  ->  lead scoring  ->  queue builder  ->  rendered HTML
+        |                                                    |
+        v                                                    v
+  decision makers  -------------------------------->  manifest.json
+                                                             |
+                                                             v
+                                      launchd (Tue/Wed/Thu 12:00 Cairo)
+                                                             |
+                                                             v
+                                      Python runner + browser-harness
+                                                             |
+                                                             v
+                                      Hostinger webmail (08:00 local)
+                                                             |
+                                                             v
+                                      tracker.csv rows flip Pending -> Sent
+
+Two clocks are involved:
+  - launchd wakes the Mac once per active day at 12:00 Cairo.
+  - The Python runner then sleeps until each clinic's exact UTC send time,
+    which equals 08:00 in that clinic's province.
+
+
+4. COMPONENTS
+--------------------------------------------------------------------------------
+scripts/outreach-queue.js
+  Selects eligible leads, caps 3 per province, resolves decision makers,
+  renders step-01 HTML, converts 08:00 local to UTC and Cairo, writes the
+  per-day manifest and appends/updates the tracker.
+  Flags: --date YYYY-MM-DD, --only slug-a,slug-b, --dry-run, --status
+
+scripts/send-outreach.py
+  Reads dist/outreach-queue/<date>/manifest.json, waits for each send time,
+  opens Hostinger compose, commits the recipient chip, injects the HTML,
+  clicks Send, waits for the "Message sent successfully" toast, then updates
+  the tracker row to Sent. Retries Enter if the recipient chip has not
+  resolved after ~3 seconds; refuses to click Send without a committed chip.
+
+scripts/run-outreach.sh
+  launchd entry point. cds into the runtime, runs caffeinate -i -s, then
+  pipes send-outreach.py into browser-harness. Logs to
+  dist/outreach-queue/scheduler.log
+
+scripts/deploy-outreach-runtime.sh
+  Mirrors sender, queue builder and manifests into
+  ~/Library/Application Support/Valioz/outreach-runtime and hardlinks the
+  tracker. Needed because macOS TCC blocks launchd from reading ~/Documents.
+
+~/Library/LaunchAgents/com.valioz.outreach.plist
+  Loaded agent. StartCalendarInterval: Weekday 2, 3, 4 at 12:00 local.
+  Label com.valioz.outreach. ProcessType Interactive.
+
+lib/sequence-content.js
+  The five canonical sequence steps, subject builder, greeting fallback,
+  unsubscribe URL. Steps:
+    01-welcome, 02-pas-awareness, 03-aida-conversion, 04-case-study,
+    05-urgency
+  Daily cold outreach currently uses only 01-welcome.
+
+lib/offer-content.js
+  Shared offer block, CTAs, pricing, and the live-site vs no-site journey
+  variant.
+
+lib/valioz-brand.js
+  Logo URL, sender identity, WhatsApp, Damietta address, brand tokens.
+
+lib/builder.js, lib/template-engine.js, scripts/build-templates.js
+  Dual-brand HTML assembly and template build.
+
+scripts/validate-templates.js
+  QA pass over rendered emails. Currently passes with 4 known warnings for
+  empty resolved_website_url rows.
+
+scripts/enrich-clinic-logos.js
+  Downloads clinic logos/favicons, extracts accent colours, writes the
+  enriched CSV.
+
+scripts/sync-hostinger.js
+  Stages templates into Hostinger (not used for the daily scheduled send).
+
+config/30-day-plan.js
+  LEGACY Mon/Wed/Fri plan. Not the active five-step sequence. Do not treat
+  it as the current campaign.
+
+
+5. DATA FILES
+--------------------------------------------------------------------------------
+data/dental-clinics.csv
+  Raw clinic seed list.
+
+data/dental-clinics-enriched.csv
+  Enriched: email, DSO flag, logo, resolved website, clinic colours.
+
+data/clinic-research.csv
+  138 scored leads with verification state, province, city and send status.
+
+data/decision-makers.csv
+  Researched names, titles and source URLs. Only verified entries are used;
+  clinics without a published name get "Practice Manager (name not
+  published)" rather than a guess.
+
+canadian_clinics_outreach_tracker.csv
+  Columns: Clinic Name, Province / City, Local Time Zone, Decision Maker Name,
+  Decision Maker Title, Email Address, Subject Line,
+  Sent Timestamp (UTC & Local), Status, Notes.
+  Status is Pending, Scheduled or Sent. Shared inode with the runtime copy -
+  never cp or rename over it or the hardlink breaks.
+
+dist/personalized/
+  138 clinics x 5 steps = 690 rendered HTML emails.
+
+dist/outreach-queue/<date>/
+  manifest.json (recipients, subjects, UTC/Cairo times, relative HTML paths),
+  one folder per clinic with 01-welcome.html, scheduler.log.
+
+Province -> time zone mapping:
+  ON, QC        -> America/Toronto    ET
+  NS, NB, PE    -> America/Halifax    AT
+  BC            -> America/Vancouver  PT
+  AB            -> America/Edmonton   MT
+  MB            -> America/Winnipeg   CT
+  SK            -> America/Regina     CST
+
+
+6. EMAIL DESIGN
+--------------------------------------------------------------------------------
+Dual-brand wrapper:
+  - White background, table-only HTML, mobile-safe.
+  - Valioz logo on the left, clinic logo on the right at 48px.
+  - Line "Prepared for {{clinic_brand_name}}".
+  - Valioz navy #172C46 and turquoise #00AFA5 from the official brand kit.
+  - Clinic accent colours are used only inside the content body.
+  - Footer: HIPAA notice, unsubscribe link, WhatsApp CTA.
+  - Primary CTA: "Book Your Free Growth Audit" -> https://health.valioz.com/
+
+Journey variants:
+  - Live website: audit/visibility journey. No "custom website" offer.
+  - Broken or unknown website: may include the custom-website step.
+  - If resolved_website_url is empty, the template falls back to
+    https://health.valioz.com (this is the source of the 4 QA warnings).
+
+
+7. SCHEDULING AND SEND RECIPE
+--------------------------------------------------------------------------------
+Send times (08:00 clinic-local -> UTC):
+  AT  08:00 -> 12:00Z
+  ET  08:00 -> 13:00Z
+  CT  08:00 -> 14:00Z   (system tzdata 2026f)
+  MT  08:00 -> 14:00Z   (Alberta on permanent UTC-6 in 2026f)
+  PT  08:00 -> 15:00Z   (BC on permanent UTC-7 in 2026f)
+
+launchd fires Tue/Wed/Thu at 12:00 Cairo, which is before every send.
+
+Compose recipe used by the runner:
+  1. Open a new Hostinger message.
+  2. Set #to with the native value setter.
+  3. Focus the field, wait ~3 s for the chip to resolve, press Enter.
+  4. Refuse to continue until the address is committed as a chip.
+  5. Set #subject.
+  6. Inject the rendered HTML into
+     iframe [data-qa="composer-content-body"].
+  7. Real click_at_xy on Send.
+  8. Wait for the "Message sent successfully" toast.
+  9. Mark the tracker row Sent with both UTC and local timestamps.
+
+Chrome tab target: E60ADFE8388A6D58EC065D638E13CEE7
+Chrome must stay open and signed in to sales@health.valioz.com.
+
+
+8. CURRENT STATE (2026-11-10)
+--------------------------------------------------------------------------------
+Queue for today: 10 clinics, all tracker rows Pending at time of writing.
+
+  13:00Z ET  Maple Ridge Family Dental, London ON
+             Practice Manager (name not published)
+  13:00Z ET  Brampton Dental Arts, Brampton ON
+             Dr. Sheikh, Principal Dentist
+  13:00Z ET  iSmile Dental Centre - North, Brampton ON
+             Dr. Amardeep Kaur, Dentist
+  13:00Z ET  Centre Dentaire Boulevard Galeries d'Anjou, Montreal QC
+             Dr. Pannese, Founder
+  14:00Z MT  Aspen Trails Dental, Sherwood Park AB
+             Practice Manager (name not published)
+  14:00Z MT  Greystone Family Dental, Calgary AB
+             Practice Manager (name not published)
+  14:00Z MT  Kherani Dental at Aspen, Calgary AB
+             Dr. Shamshudin Kherani, Principal Dentist
+  15:00Z PT  Norgate Dental Centre, North Vancouver BC
+             Dr. Niki Hariri, Dentist
+  15:00Z PT  Vancouver City Centre Dental, Vancouver BC
+             Dr. Amin Shivji, Owner
+  15:00Z PT  Yorkson Dental, Langley BC
+             Dr. Faria Chohan, Dentist
+
+Already done:
+  - Brand kit logo and colours integrated.
+  - 690 emails rebuilt white-background and mobile-safe; QA passing.
+  - Unsubscribe links moved to health.valioz.com.
+  - Queue builder, sender, runtime deploy and launchd agent built.
+  - End-to-end real send verified to ibrahim.zed24@gmail.com; toast confirmed
+    and the test tracker row flipped to Sent.
+  - launchd kickstart exited 0; Tue/Wed/Thu 12:00 triggers confirmed.
+  - Commit 79630bd pushed to main; CI green.
+
+Test recipients: ibrahim.zed24@gmail.com, mahmoud94yasser@gmail.com
+
+
+9. BLOCKERS AND RISKS
+--------------------------------------------------------------------------------
+- Lead pool is thin. 138 clinics scored, only 33 eligible remain after
+  exclusions, and only 3 have verified decision-maker names. Wednesday's 10
+  are deliberately not queued yet.
+- Ownership/DSO conflicts in the remaining pool: shared owners across
+  Canada Way / Mulberry / Vancouver City Centre, and 123 Kerrisdale is a
+  known 123Dentist member despite the Independent flag. Maple Ridge Family
+  Dental is also listed as a 123Dentist member on its own site and is in
+  today's queue - decide whether to keep or replace it.
+- Autonomy depends on the Mac. The lid must stay open and the machine awake;
+  caffeinate -i -s only blocks idle sleep, not lid-close sleep. Chrome must
+  stay open and signed in to Hostinger. If either fails, sends are skipped.
+- No SMTP credentials exist. Sending is 100% dependent on the signed-in
+  webmail session.
+- 4 QA warnings for empty resolved_website_url: Anjou, Laurier,
+  Eskenazi & Suissa, Riverside Kamloops. They fall back to the Valioz site.
+- Keyword Planner numbers are Canada-wide bucketed ranges from 2026-11-09.
+  Never present them as city-level demand.
+- The Documents working copy has no .git. /tmp/sales-os-push is the only git
+  clone. Do not sync package.json, package-lock.json or
+  src/lib/email-workflow.ts from Documents - those are regressions.
+
+
+10. OPERATING COMMANDS
+--------------------------------------------------------------------------------
+Build today's queue (dry run first):
+  cd sales-os-email-workflow
+  node scripts/outreach-queue.js --date 2026-11-11 --dry-run
+  node scripts/outreach-queue.js --date 2026-11-11
+
+Queue a hand-picked list:
+  node scripts/outreach-queue.js --date 2026-11-11 --only slug-a,slug-b
+
+Inspect eligibility:
+  node scripts/outreach-queue.js --status
+
+Deploy to the launchd-readable runtime:
+  bash scripts/deploy-outreach-runtime.sh
+
+Reload / test the agent:
+  launchctl unload ~/Library/LaunchAgents/com.valioz.outreach.plist
+  launchctl load   ~/Library/LaunchAgents/com.valioz.outreach.plist
+  launchctl kickstart -k gui/$(id -u)/com.valioz.outreach
+
+Watch a run:
+  tail -f "$HOME/Library/Application Support/Valioz/outreach-runtime/dist/outreach-queue/scheduler.log"
+
+Rebuild all personalized emails / QA:
+  node scripts/build-templates.js
+  node scripts/validate-templates.js
+
+Commit and push (use the clean clone, not Documents):
+  cd /tmp/sales-os-push && git add -A && git commit -m "..." && git push
+
+
+11. DECISION LOG
+--------------------------------------------------------------------------------
+- Hostinger schedule-send is premium-gated -> local launchd scheduler driving
+  the already-signed-in Chrome through browser-harness.
+- macOS TCC blocks launchd in ~/Documents -> runtime moved to
+  ~/Library/Application Support/Valioz/outreach-runtime, tracker hardlinked.
+- Recipient chips need ~3 s -> sender retries Enter and refuses Send until
+  the address is committed.
+- tzdata 2026f has BC permanent UTC-7 and Alberta permanent UTC-6 -> PT 15:00Z,
+  MT 14:00Z, ET 13:00Z.
+- Five-step sequence is canonical, but daily cold outreach uses step 01 only.
+- Lead selection trusts the Independent flag, then manually excludes known
+  DSO members and shared-owner clinics.
+- Wednesday's queue held back rather than pad it with conflicted leads.
+
+
+12. FILE MAP
+--------------------------------------------------------------------------------
+sales-os-email-workflow/
+  AGENT.md                      current pipeline notes
+  PROJECT-SUMMARY.txt           this file
+  canadian_clinics_outreach_tracker.csv
+  config/30-day-plan.js         legacy, inactive
+  data/*.csv                    research, enrichment, decision makers
+  lib/sequence-content.js       five-step copy and subject builder
+  lib/offer-content.js          offer block, CTAs, live-site variant
+  lib/valioz-brand.js           logo, sender, WhatsApp, tokens
+  scripts/outreach-queue.js     lead selection + render + manifest + tracker
+  scripts/send-outreach.py      Hostinger sender
+  scripts/run-outreach.sh       launchd wrapper (caffeinate + harness)
+  scripts/deploy-outreach-runtime.sh
+  dist/personalized/            690 rendered emails
+  dist/outreach-queue/<date>/   manifest, per-clinic HTML, scheduler.log
+
+Runtime (launchd-readable):
+  ~/Library/Application Support/Valioz/outreach-runtime/
+  ~/Library/LaunchAgents/com.valioz.outreach.plist
+
+Push clone:
+  /tmp/sales-os-push
+
+
+13. NEXT ACTIONS
+--------------------------------------------------------------------------------
+1. Verify today's sends at 13:00/14:00/15:00Z in scheduler.log, the success
+   toast, and tracker rows flipping to Sent.
+2. Decide on Maple Ridge Family Dental (123Dentist membership).
+3. Find ~10 new independent verified leads for Wednesday and research their
+   decision makers.
+4. Keep the Mac awake and Chrome signed in until the last send.
+5. Re-deploy the runtime after any script change.
+
+================================================================================
+End of summary.
+================================================================================
