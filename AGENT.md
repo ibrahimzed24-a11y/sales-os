@@ -136,7 +136,8 @@ logos render, then send. The script never sends by itself.
 
 1. `npm run email:test` ends with **ALL CHECKS PASSED**.
 2. Open the personalized HTML and confirm exactly two images:
-   - left: `health.valioz.com/wp-content/uploads/2026/11/valioz-logo-horizontal-en-navy.png`
+   - left: `raw.githubusercontent.com/.../assets/valioz-logo-horizontal.png`
+     (official brand-kit Primary mark, palette-compressed under 50 KB)
    - right: the clinic's `raw.githubusercontent.com/.../assets/clinic-logos/<slug>.png`
 3. Send a test and open the Sent copy. In DevTools, both header images must have
    `naturalWidth > 0`. A 404 or blocked image is a failure even if the alt text shows.
@@ -163,3 +164,36 @@ logos render, then send. The script never sends by itself.
   only through `npm run email:enrich` or a curated override in `config/logo-overrides.json`.
 - `src/lib/email-workflow.ts` is the legacy Sales OS integration. The canonical
   pipeline is the Node scripts above.
+
+## 6. Autonomous outreach scheduler (local launchd)
+
+Hostinger's calendar schedule-send is premium-gated, so sending is driven by a
+local launchd agent through the already signed-in Hostinger webmail tab.
+
+```bash
+# 1. Pick leads, render HTML, write the manifest + tracker
+node scripts/outreach-queue.js --date 2026-11-11
+
+# 2. Mirror the runtime outside ~/Documents (macOS TCC blocks launchd reads there)
+scripts/deploy-outreach-runtime.sh
+
+# 3. Dry-run one due message through the real composer
+OUTREACH_DRY=1 OUTREACH_FORCE=1 OUTREACH_MAX=1 \
+  "$HOME/Library/Application Support/Valioz/outreach-runtime/scripts/run-outreach.sh"
+
+# 4. Load / reload the schedule (Tue/Wed/Thu 12:00 Cairo)
+launchctl bootout gui/$(id -u)/com.valioz.outreach 2>/dev/null
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.valioz.outreach.plist
+```
+
+- The runner sleeps until each clinic's exact 08:00 local time from the
+  manifest, then sends and flips the tracker row to `Sent`.
+- The runtime tracker is a **hardlink** to the repo tracker; never `cp` over it
+  or replace it with a rename, or the link breaks. `deploy` uses `ln -f`.
+- Logs: `dist/outreach-queue/scheduler.log` (repo and runtime).
+- Requires the Mac awake at send time (`caffeinate` is in the wrapper, lid-open
+  still required) and Chrome signed in to `sales@health.valioz.com`.
+- Recipient chips need ~3 s to resolve before Enter; the sender retries and
+  refuses to click Send until the address is committed.
+- `OUTREACH_DRY=1`, `OUTREACH_FORCE=1`, `OUTREACH_MAX=n` are test-only switches.
+
