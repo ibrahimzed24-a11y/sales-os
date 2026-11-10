@@ -416,15 +416,15 @@ export default function AgentsOutreachPage() {
           </div>
 
           {/* Email Preview Card */}
-          <div className="mx-auto max-w-[680px] rounded-xl border border-line bg-white p-6 text-slate-800 shadow-md">
-            {/* Header: Dual Logos */}
-            <div className="flex items-center justify-between border-b border-slate-200 pb-5">
+          <div className="mx-auto max-w-[620px] rounded-xl border border-line bg-white p-4 sm:p-6 text-slate-800 shadow-md">
+            {/* Header: Dual Logos (Responsive Stack on Mobile) */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-5">
               <img
                 src="https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets/valioz-logo-horizontal.png"
                 alt="VALIOZ Health"
-                className="h-12 w-auto object-contain"
+                className="h-9 w-auto object-contain self-start"
               />
-              <div className="text-right">
+              <div className="text-left sm:text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                 <p className="text-[10px] uppercase tracking-wider text-slate-400">
                   Prepared for {previewCohort === 'A' ? 'Brampton Dental Arts' : 'Smiles on Bay'}
                 </p>
@@ -440,17 +440,42 @@ export default function AgentsOutreachPage() {
                 Growth Audit &bull; {previewCohort === 'A' ? 'Brampton, ON' : 'Toronto, ON'}
               </div>
 
-              <h2 className="text-xl font-bold text-slate-900 leading-snug">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 leading-snug">
                 More patients are searching in {previewCohort === 'A' ? 'Brampton' : 'Toronto'}. Will they book with {previewCohort === 'A' ? 'Brampton Dental Arts' : 'Smiles on Bay'}?
               </h2>
 
-              <p className="text-sm text-slate-700 leading-relaxed">
+              <p className="text-sm sm:text-base text-slate-700 leading-relaxed">
                 {previewCohort === 'A' ? 'Dr. Sheikh' : 'Hi there'}, we took a closer look at how patients discover dental care in {previewCohort === 'A' ? 'Brampton' : 'Toronto'}. {previewCohort === 'A' ? 'Brampton Dental Arts already has a live web presence, so the primary opportunity is making sure that local visibility turns into high-production booked appointments rather than leaking to corporate DSOs in ON.' : 'We noticed Smiles on Bay does not currently have a high-converting mobile web presence, so local patients searching for dental care are defaulting to competing corporate DSO practices.'}
               </p>
 
               {/* Research Metrics Box */}
-              <div className="rounded-lg border-l-4 border-teal-500 bg-slate-50 p-3 text-xs text-slate-700">
+              <div className="rounded-lg border-l-4 border-teal-500 bg-slate-50 p-3.5 text-xs sm:text-sm text-slate-700">
                 <span className="font-semibold">{previewCohort === 'A' ? '4.8★ from 333 Google reviews' : '4.6★ from 48 Google reviews'}</span> &bull; Verified CDCP Provider &bull; {previewCohort === 'A' ? 'Live presence analyzed' : 'No active mobile site'}
+              </div>
+
+              {/* Search Demand Snapshot (Mobile-First Stacked Bars) */}
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                  Canadian Dental Search Demand Snapshot
+                </h4>
+                <div className="space-y-3">
+                  {[
+                    { label: 'General dentistry', range: '100K-1M /mo', width: '94%', color: 'bg-teal-500' },
+                    { label: 'Emergency care', range: '10K-100K /mo', width: '52%', color: 'bg-slate-700' },
+                    { label: 'Cosmetic & implants', range: '10K-100K /mo', width: '41%', color: 'bg-teal-300' },
+                    { label: 'CDCP inquiries', range: '10K-100K /mo', width: '38%', color: 'bg-teal-600' },
+                  ].map((b, i) => (
+                    <div key={i}>
+                      <div className="flex justify-between text-xs font-medium text-slate-700 mb-1">
+                        <span>{b.label}</span>
+                        <span className="font-bold text-teal-600">{b.range}</span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className={`h-full ${b.color} rounded-full`} style={{ width: b.width }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Patient Journey: Cohort Rule Applied */}
@@ -458,27 +483,27 @@ export default function AgentsOutreachPage() {
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   The Complete Patient Journey Built For You:
                 </h4>
-                <div className="mt-3 space-y-2 text-xs">
+                <div className="mt-3 space-y-2 text-xs sm:text-sm">
                   {previewCohort === 'B' && (
-                    <div className="flex items-start gap-2 text-teal-700 font-semibold bg-teal-50/70 p-2 rounded">
-                      <Check className="h-4 w-4 shrink-0 text-teal-600" />
+                    <div className="flex items-start gap-2 text-teal-700 font-semibold bg-teal-50/70 p-2.5 rounded">
+                      <Check className="h-4 w-4 shrink-0 text-teal-600 mt-0.5" />
                       <span>1. Custom high-converting website built for Smiles on Bay</span>
                     </div>
                   )}
                   <div className="flex items-start gap-2 text-slate-700">
-                    <Check className="h-4 w-4 shrink-0 text-teal-600" />
+                    <Check className="h-4 w-4 shrink-0 text-teal-600 mt-0.5" />
                     <span>{previewCohort === 'B' ? '2' : '1'}. Google 3-Pack rank defense & local Search prominence</span>
                   </div>
                   <div className="flex items-start gap-2 text-slate-700">
-                    <Check className="h-4 w-4 shrink-0 text-teal-600" />
+                    <Check className="h-4 w-4 shrink-0 text-teal-600 mt-0.5" />
                     <span>{previewCohort === 'B' ? '3' : '2'}. GEO & AI Visibility (ChatGPT, Google Gemini patient search)</span>
                   </div>
                   <div className="flex items-start gap-2 text-slate-700">
-                    <Check className="h-4 w-4 shrink-0 text-teal-600" />
+                    <Check className="h-4 w-4 shrink-0 text-teal-600 mt-0.5" />
                     <span>{previewCohort === 'B' ? '4' : '3'}. Instagram / TikTok local discovery & social proof</span>
                   </div>
                   <div className="flex items-start gap-2 text-slate-700">
-                    <Check className="h-4 w-4 shrink-0 text-teal-600" />
+                    <Check className="h-4 w-4 shrink-0 text-teal-600 mt-0.5" />
                     <span>{previewCohort === 'B' ? '5' : '4'}. Verified monthly analytics & Daily Growth Brief reporting</span>
                   </div>
                 </div>
@@ -487,19 +512,19 @@ export default function AgentsOutreachPage() {
               {/* Offer & Pricing */}
               <div className="rounded-lg border-2 border-teal-500 bg-white p-5 text-center">
                 <div className="text-xs font-bold uppercase tracking-wide text-teal-600">The Valioz Growth Partnership</div>
-                <div className="mt-1 text-2xl font-bold text-slate-900">
+                <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">
                   {previewCohort === 'B' ? '$499 CAD One-Time' : '$499 CAD Pilot'}
                 </div>
-                <p className="mt-1 text-xs text-slate-600">
+                <p className="mt-1 text-xs sm:text-sm text-slate-600">
                   {previewCohort === 'B' ? 'Custom website build + 30 days of full Human + AI Growth management.' : '30 days of dedicated Human + AI Growth management. Optional $299/mo thereafter.'}
                 </p>
-                <div className="mt-3 inline-block rounded bg-teal-600 px-6 py-2.5 text-xs font-bold text-white shadow">
+                <div className="mt-3 block sm:inline-block w-full sm:w-auto rounded bg-teal-600 px-6 py-3 text-xs sm:text-sm font-bold text-white shadow">
                   Book Your Free Growth Audit &rarr;
                 </div>
               </div>
 
               {/* Quick Reply Box */}
-              <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-3 text-center text-xs">
+              <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-3.5 text-center text-xs sm:text-sm">
                 <span className="font-semibold text-teal-900">No time for a call right now?</span>{' '}
                 <span className="text-slate-700">Just reply <strong>YES</strong> and our team will email your practice the full breakdown.</span>
               </div>
