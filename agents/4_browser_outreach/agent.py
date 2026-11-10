@@ -108,40 +108,62 @@ click_expr = \"\"\"(function(){{
     return 'no';
 }})()\"\"\"
 
-for _ in range(20):
-    if js(click_expr) == 'ok':
-        break
-    time.sleep(0.5)
+# Check if composer is already open
+composer_open = js("!!document.getElementById('to') && !!document.getElementById('subject')")
 
-# Wait for compose fields
-for _ in range(20):
-    if js("!!document.getElementById('to') && !!document.getElementById('subject')"):
-        break
-    time.sleep(0.5)
+if not composer_open:
+    for _ in range(20):
+        if js(click_expr) == 'ok':
+            break
+        time.sleep(0.5)
 
-# Set 'to' address and commit chip
+    # Wait for compose fields
+    for _ in range(20):
+        if js("!!document.getElementById('to') && !!document.getElementById('subject')"):
+            break
+        time.sleep(0.5)
+
+# Check if recipient chip is already committed
 to_addr = {json.dumps(to_email)}
-set_to = \"\"\"(function(){{
-    var e = document.getElementById('to');
-    if (!e) return 'no';
-    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    setter.call(e, %s);
-    e.dispatchEvent(new Event('input', {{bubbles: true}}));
-    e.dispatchEvent(new Event('change', {{bubbles: true}}));
-    return 'ok';
+has_chip_expr = \"\"\"(function(){{
+    var bs = Array.from(document.querySelectorAll('button')).map(function(b){{ return (b.innerText || '').trim(); }});
+    return bs.includes(%s);
 }})()\"\"\" % json.dumps(to_addr)
 
-js(set_to)
-chip_committed = False
-for attempt in range(4):
-    js("(function(){{var e=document.getElementById('to');if(e)e.focus();}})()")
-    time.sleep(3 if attempt == 0 else 1.5)
-    press_key("Enter")
-    time.sleep(1)
-    val = js("(function(){{var e=document.getElementById('to');return e ? e.value : '__none__';}})()")
-    if val == "":
-        chip_committed = True
-        break
+has_chip = js(has_chip_expr)
+
+if has_chip:
+    chip_committed = True
+else:
+    set_to = \"\"\"(function(){{
+        var e = document.getElementById('to');
+        if (!e) return 'no';
+        var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        setter.call(e, %s);
+        e.dispatchEvent(new Event('input', {{bubbles: true}}));
+        e.dispatchEvent(new Event('change', {{bubbles: true}}));
+        return 'ok';
+    }})()\"\"\" % json.dumps(to_addr)
+
+    js(set_to)
+    chip_committed = False
+    for attempt in range(5):
+        js(\"(function(){{var e=document.getElementById('to');if(e)e.focus();}})()\")
+        time.sleep(2 if attempt == 0 else 1)
+        press_key(\"Enter\")
+        js(\"\"\"(function(){{
+            var e = document.getElementById('to');
+            if (e) {{
+                e.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}}));
+                e.dispatchEvent(new KeyboardEvent('keyup', {{key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}}));
+            }}
+        }})()\"\"\")
+        time.sleep(1)
+        has_chip_now = js(has_chip_expr)
+        val = js(\"(function(){{var e=document.getElementById('to');return e ? e.value : '__none__';}})()\")
+        if has_chip_now or val == \"\":
+            chip_committed = True
+            break
 
 if not chip_committed:
     print(json.dumps({{"success": False, "error": "Failed to commit recipient chip in #to"}}))
