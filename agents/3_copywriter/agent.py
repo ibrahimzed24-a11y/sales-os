@@ -36,8 +36,103 @@ SNAPSHOT_BARS = [
 ]
 
 class DualBrandTemplateEngine:
-    @staticmethod
-    def render_email(clinic: dict, step: str = "01-welcome") -> str:
+    ASSET_BASE_URL = "https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets"
+    BOOKING_URL = "https://health.valioz.com/"
+
+    @classmethod
+    def render_email(cls, clinic: dict, step: str = "01-welcome") -> str:
+        """
+        Render the core pixel-level sliced visual email template.
+        Uses pure white background (#ffffff) and responsive 600px shell.
+        """
+        name = clinic.get("clinic_name", "Brampton Dental Arts")
+        email = clinic.get("email", "")
+        encoded_email = urllib.parse.quote(email)
+        encoded_name = urllib.parse.quote(name)
+        unsub_url = f"https://health.valioz.com/unsubscribe/?email={encoded_email}&clinic={encoded_name}"
+        booking_url = cls.BOOKING_URL
+        asset_base = cls.ASSET_BASE_URL
+
+        return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>{name} | VALIOZ Health Growth Audit</title>
+  <style>
+    body {{
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }}
+    table {{
+      border-collapse: collapse !important;
+      mso-table-lspace: 0pt !important;
+      mso-table-rspace: 0pt !important;
+    }}
+    img {{
+      border: 0 !important;
+      outline: none !important;
+      text-decoration: none !important;
+      display: block !important;
+      width: 100% !important;
+      height: auto !important;
+    }}
+    a {{
+      text-decoration: none;
+    }}
+    @media screen and (max-width: 640px) {{
+      .email-shell {{
+        width: 100% !important;
+      }}
+      .email-padding {{
+        padding: 0 !important;
+      }}
+    }}
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#ffffff;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">
+    Prepared for {name}: your VALIOZ Health growth audit.
+  </div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#ffffff">
+    <tr>
+      <td align="center" class="email-padding" style="padding:24px 12px">
+        <table role="presentation" class="email-shell" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:#ffffff">
+          <tr>
+            <td>
+              <img src="{asset_base}/email_top.jpg" width="600" alt="VALIOZ Health growth audit for {name}. Overview of opportunities and search demand." style="width:100%;height:auto;display:block">
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <a href="{booking_url}" target="_blank" aria-label="Book your free growth audit" style="display:block">
+                <img src="{asset_base}/email_cta.jpg" width="600" alt="Book Your Free Growth Audit" style="width:100%;height:auto;display:block">
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <img src="{asset_base}/email_footer.jpg" width="600" alt="VALIOZ Health | health.valioz.com | Prepared for {name}. Data is indicative." style="width:100%;height:auto;display:block">
+            </td>
+          </tr>
+          <tr>
+            <td style="font:12px Arial,sans-serif;color:#607784;text-align:center;padding:12px 16px 20px;background:#ffffff">
+              <a href="{unsub_url}" style="color:#607784;text-decoration:underline">Unsubscribe</a> &nbsp;·&nbsp; <a href="{booking_url}" style="color:#008e91;text-decoration:underline">VALIOZ Health</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+    @classmethod
+    def render_legacy_table_email(cls, clinic: dict, step: str = "01-welcome") -> str:
         name = clinic["clinic_name"]
         city = clinic["city"]
         prov = clinic["province"]

@@ -390,149 +390,68 @@ export default function AgentsOutreachPage() {
         <div className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-base font-semibold">Dual-Brand Pure-White (#FFFFFF) Template Engine</h3>
+              <h3 className="text-base font-semibold">Core Sliced Visual Template Engine (Pure-White #FFFFFF)</h3>
               <p className="text-xs text-muted">
-                Enforcing pure-white background, dual 48px logos, and cohort-specific patient journey adaptation.
+                Pixel-level responsive 600px email layout with high-converting visual demand intelligence slices.
               </p>
             </div>
-            <div className="flex items-center gap-2 rounded-lg border border-line bg-bg p-1 text-xs">
-              <button
-                onClick={() => setPreviewCohort('A')}
-                className={`rounded px-3 py-1 font-medium transition-colors ${
-                  previewCohort === 'A' ? 'bg-panel text-fg shadow-sm' : 'text-muted hover:text-fg'
-                }`}
-              >
-                Cohort A (Live Site &bull; SEO/GEO Defense)
-              </button>
-              <button
-                onClick={() => setPreviewCohort('B')}
-                className={`rounded px-3 py-1 font-medium transition-colors ${
-                  previewCohort === 'B' ? 'bg-panel text-fg shadow-sm' : 'text-muted hover:text-fg'
-                }`}
-              >
-                Cohort B ($499 Custom Website Build)
-              </button>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center rounded-full bg-teal-500/10 px-2.5 py-0.5 text-xs font-semibold text-teal-600">
+                Active Core Design
+              </span>
             </div>
           </div>
 
           {/* Email Preview Card */}
-          <div className="mx-auto max-w-[620px] rounded-xl border border-line bg-white p-4 sm:p-6 text-slate-800 shadow-md">
-            {/* Header: Dual Logos (Responsive Stack on Mobile) */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-5">
+          <div className="mx-auto max-w-[620px] rounded-xl border border-line bg-white p-2 sm:p-4 text-slate-800 shadow-md">
+            <div className="overflow-hidden rounded-lg border border-slate-100 bg-white">
+              {/* Slice 1: Top Visual with Dual-Brand Header, Insights & Demand */}
               <img
-                src="https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets/valioz-logo-horizontal.png"
-                alt="VALIOZ Health"
-                className="h-9 w-auto object-contain self-start"
+                src="https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets/email_top.jpg"
+                alt="VALIOZ Health Growth Audit - Brampton Dental Arts"
+                className="w-full h-auto block"
               />
-              <div className="text-left sm:text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-                <p className="text-[10px] uppercase tracking-wider text-slate-400">
-                  Prepared for {previewCohort === 'A' ? 'Brampton Dental Arts' : 'Smiles on Bay'}
-                </p>
-                <div className="mt-1 font-semibold text-slate-900">
-                  {previewCohort === 'A' ? 'Brampton Dental Arts' : 'Smiles on Bay'}
-                </div>
-              </div>
-            </div>
 
-            {/* Email Body */}
-            <div className="pt-6 space-y-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-teal-600">
-                Growth Audit &bull; {previewCohort === 'A' ? 'Brampton, ON' : 'Toronto, ON'}
-              </div>
+              {/* Slice 2: Interactive CTA Button */}
+              <a
+                href="https://health.valioz.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block hover:opacity-95 transition-opacity"
+              >
+                <img
+                  src="https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets/email_cta.jpg"
+                  alt="Book Your Free Growth Audit"
+                  className="w-full h-auto block"
+                />
+              </a>
 
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 leading-snug">
-                More patients are searching in {previewCohort === 'A' ? 'Brampton' : 'Toronto'}. Will they book with {previewCohort === 'A' ? 'Brampton Dental Arts' : 'Smiles on Bay'}?
-              </h2>
+              {/* Slice 3: Footer with Fast Reply & Contact */}
+              <img
+                src="https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets/email_footer.jpg"
+                alt="VALIOZ Health & Brampton Dental Arts Information"
+                className="w-full h-auto block"
+              />
 
-              <p className="text-sm sm:text-base text-slate-700 leading-relaxed">
-                {previewCohort === 'A' ? 'Dr. Sheikh' : 'Hi there'}, we took a closer look at how patients discover dental care in {previewCohort === 'A' ? 'Brampton' : 'Toronto'}. {previewCohort === 'A' ? 'Brampton Dental Arts already has a live web presence, so the primary opportunity is making sure that local visibility turns into high-production booked appointments rather than leaking to corporate DSOs in ON.' : 'We noticed Smiles on Bay does not currently have a high-converting mobile web presence, so local patients searching for dental care are defaulting to competing corporate DSO practices.'}
-              </p>
-
-              {/* Research Metrics Box */}
-              <div className="rounded-lg border-l-4 border-teal-500 bg-slate-50 p-3.5 text-xs sm:text-sm text-slate-700">
-                <span className="font-semibold">{previewCohort === 'A' ? '4.8★ from 333 Google reviews' : '4.6★ from 48 Google reviews'}</span> &bull; Verified CDCP Provider &bull; {previewCohort === 'A' ? 'Live presence analyzed' : 'No active mobile site'}
-              </div>
-
-              {/* Search Demand Snapshot (Mobile-First Stacked Bars) */}
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                  Canadian Dental Search Demand Snapshot
-                </h4>
-                <div className="space-y-3">
-                  {[
-                    { label: 'General dentistry', range: '100K-1M /mo', width: '94%', color: 'bg-teal-500' },
-                    { label: 'Emergency care', range: '10K-100K /mo', width: '52%', color: 'bg-slate-700' },
-                    { label: 'Cosmetic & implants', range: '10K-100K /mo', width: '41%', color: 'bg-teal-300' },
-                    { label: 'CDCP inquiries', range: '10K-100K /mo', width: '38%', color: 'bg-teal-600' },
-                  ].map((b, i) => (
-                    <div key={i}>
-                      <div className="flex justify-between text-xs font-medium text-slate-700 mb-1">
-                        <span>{b.label}</span>
-                        <span className="font-bold text-teal-600">{b.range}</span>
-                      </div>
-                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div className={`h-full ${b.color} rounded-full`} style={{ width: b.width }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Patient Journey: Cohort Rule Applied */}
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  The Complete Patient Journey Built For You:
-                </h4>
-                <div className="mt-3 space-y-2 text-xs sm:text-sm">
-                  {previewCohort === 'B' && (
-                    <div className="flex items-start gap-2 text-teal-700 font-semibold bg-teal-50/70 p-2.5 rounded">
-                      <Check className="h-4 w-4 shrink-0 text-teal-600 mt-0.5" />
-                      <span>1. Custom high-converting website built for Smiles on Bay</span>
-                    </div>
-                  )}
-                  <div className="flex items-start gap-2 text-slate-700">
-                    <Check className="h-4 w-4 shrink-0 text-teal-600 mt-0.5" />
-                    <span>{previewCohort === 'B' ? '2' : '1'}. Google 3-Pack rank defense & local Search prominence</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-slate-700">
-                    <Check className="h-4 w-4 shrink-0 text-teal-600 mt-0.5" />
-                    <span>{previewCohort === 'B' ? '3' : '2'}. GEO & AI Visibility (ChatGPT, Google Gemini patient search)</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-slate-700">
-                    <Check className="h-4 w-4 shrink-0 text-teal-600 mt-0.5" />
-                    <span>{previewCohort === 'B' ? '4' : '3'}. Instagram / TikTok local discovery & social proof</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-slate-700">
-                    <Check className="h-4 w-4 shrink-0 text-teal-600 mt-0.5" />
-                    <span>{previewCohort === 'B' ? '5' : '4'}. Verified monthly analytics & Daily Growth Brief reporting</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Offer & Pricing */}
-              <div className="rounded-lg border-2 border-teal-500 bg-white p-5 text-center">
-                <div className="text-xs font-bold uppercase tracking-wide text-teal-600">The Valioz Growth Partnership</div>
-                <div className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">
-                  {previewCohort === 'B' ? '$499 CAD One-Time' : '$499 CAD Pilot'}
-                </div>
-                <p className="mt-1 text-xs sm:text-sm text-slate-600">
-                  {previewCohort === 'B' ? 'Custom website build + 30 days of full Human + AI Growth management.' : '30 days of dedicated Human + AI Growth management. Optional $299/mo thereafter.'}
-                </p>
-                <div className="mt-3 block sm:inline-block w-full sm:w-auto rounded bg-teal-600 px-6 py-3 text-xs sm:text-sm font-bold text-white shadow">
-                  Book Your Free Growth Audit &rarr;
-                </div>
-              </div>
-
-              {/* Quick Reply Box */}
-              <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-3.5 text-center text-xs sm:text-sm">
-                <span className="font-semibold text-teal-900">No time for a call right now?</span>{' '}
-                <span className="text-slate-700">Just reply <strong>YES</strong> and our team will email your practice the full breakdown.</span>
-              </div>
-
-              {/* Footer */}
-              <div className="border-t border-slate-200 pt-4 text-[11px] leading-relaxed text-slate-400">
-                <p>VALIOZ Health &bull; 100% Clinic Ownership of Domains, Assets & Content &bull; CASL & HIPAA Compliant</p>
-                <p className="mt-1">Damietta, Egypt &bull; WhatsApp: +20 10 93272247 &bull; <a href="https://health.valioz.com/unsubscribe/" className="underline">Unsubscribe</a></p>
+              {/* Legal Unsubscribe & Brand Links */}
+              <div className="bg-white py-3 px-4 text-center text-xs text-slate-500 border-t border-slate-100">
+                <a
+                  href="https://health.valioz.com/unsubscribe/?clinic=Brampton%20Dental%20Arts"
+                  className="text-slate-500 underline hover:text-slate-700"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Unsubscribe
+                </a>
+                {' '}·{' '}
+                <a
+                  href="https://health.valioz.com/"
+                  className="text-teal-600 underline hover:text-teal-700 font-medium"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  VALIOZ Health
+                </a>
               </div>
             </div>
           </div>
