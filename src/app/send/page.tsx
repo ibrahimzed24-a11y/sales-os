@@ -17,7 +17,12 @@ import {
   Users,
   ChevronRight,
   Eye,
-  Check
+  Check,
+  Compass,
+  Zap,
+  Globe2,
+  Calendar,
+  Shuffle
 } from 'lucide-react';
 import { PrototypeEmail } from '@/components/email/PrototypeEmail';
 
@@ -51,15 +56,15 @@ const AGENTS: AgentInfo[] = [
     name: '3_copywriter',
     role: 'DSPy & Terse Copywriter',
     skill: '/copywriter',
-    description: 'Generates dual-brand (48px logos) emails & proposals with pure white (#FFFFFF) background and cohort-tailored patient journey.',
+    description: 'Generates dual-brand (48px logos) emails & proposals with pure white (#FFFFFF) background and multi-vector angle rotation.',
     schedule: 'On-demand per lead',
     status: 'active',
   },
   {
     name: '4_browser_outreach',
-    role: 'Hostinger Webmail Runner',
+    role: 'Strategic Scheduler & Webmail Runner',
     skill: '/browser-outreach',
-    description: 'Headless browser automation via CDP, sets recipient chip with 3s resolution, injects pure-white HTML, auto-labels inbox.',
+    description: 'Executes sunrise cadence across Canada, sets recipient chip with 3s resolution, injects pure-white HTML, auto-labels inbox.',
     schedule: 'Tue, Wed, Thu @ 08:00 AM Local',
     status: 'active',
   },
@@ -73,64 +78,53 @@ const AGENTS: AgentInfo[] = [
   },
 ];
 
-interface QueueItem {
+interface ScheduledItem {
+  queue_index: number;
   clinic_name: string;
   city: string;
   province: string;
-  time_zone: string;
-  local_send_time: string;
-  decision_maker: string;
-  cohort: 'A' | 'B';
-  website_status: string;
+  timezone: string;
+  target_local_time: string;
+  angle: string;
+  subject: string;
   status: string;
+  contact_person?: string;
+  recipient_email?: string;
 }
 
-const DEMO_QUEUE: QueueItem[] = [
-  { clinic_name: 'Brampton Dental Arts', city: 'Brampton', province: 'ON', time_zone: 'ET (UTC-5)', local_send_time: '08:00 AM ET', decision_maker: 'Dr. Sheikh', cohort: 'A', website_status: 'Live Website', status: 'Queued' },
-  { clinic_name: 'Donway Dental Centre', city: 'North York', province: 'ON', time_zone: 'ET (UTC-5)', local_send_time: '08:00 AM ET', decision_maker: 'Practice Manager', cohort: 'A', website_status: 'Live Website', status: 'Queued' },
-  { clinic_name: 'Boutique Dental Care', city: 'Toronto', province: 'ON', time_zone: 'ET (UTC-5)', local_send_time: '08:00 AM ET', decision_maker: 'Practice Manager', cohort: 'A', website_status: 'Live Website', status: 'Queued' },
-  { clinic_name: 'Smiles on Bay', city: 'Toronto', province: 'ON', time_zone: 'ET (UTC-5)', local_send_time: '08:00 AM ET', decision_maker: 'Practice Manager', cohort: 'B', website_status: 'No Website / Broken', status: 'Queued' },
-  { clinic_name: 'West Edmonton Mall Dental Centre', city: 'Edmonton', province: 'AB', time_zone: 'MT (UTC-7)', local_send_time: '08:00 AM MT', decision_maker: 'Dr. Karukappadath', cohort: 'A', website_status: 'Live Website', status: 'Queued' },
-  { clinic_name: 'Strathcona Dental Clinic', city: 'Edmonton', province: 'AB', time_zone: 'MT (UTC-7)', local_send_time: '08:00 AM MT', decision_maker: 'Practice Manager', cohort: 'A', website_status: 'Live Website', status: 'Queued' },
-  { clinic_name: 'Urban Dental Clinic', city: 'Vancouver', province: 'BC', time_zone: 'PT (UTC-8)', local_send_time: '08:00 AM PT', decision_maker: 'Practice Manager', cohort: 'A', website_status: 'Live Website', status: 'Queued' },
-  { clinic_name: 'Arbutus North Dental Centre', city: 'Vancouver', province: 'BC', time_zone: 'PT (UTC-8)', local_send_time: '08:00 AM PT', decision_maker: 'Practice Manager', cohort: 'A', website_status: 'Live Website', status: 'Queued' },
-  { clinic_name: 'Kitsilano Dental Group', city: 'Vancouver', province: 'BC', time_zone: 'PT (UTC-8)', local_send_time: '08:00 AM PT', decision_maker: 'Practice Manager', cohort: 'A', website_status: 'Live Website', status: 'Queued' },
-  { clinic_name: 'Sherwood Dental Care', city: 'Halifax', province: 'NS', time_zone: 'AT (UTC-4)', local_send_time: '08:00 AM AT', decision_maker: 'Practice Manager', cohort: 'A', website_status: 'Live Website', status: 'Queued' },
-];
-
 export default function AgentsOutreachPage() {
-  const [activeTab, setActiveTab] = useState<'fleet' | 'queue' | 'preview' | 'briefs'>('fleet');
-  const [previewCohort, setPreviewCohort] = useState<'A' | 'B'>('A');
+  const [activeTab, setActiveTab] = useState<'scheduler' | 'preview' | 'fleet' | 'queue' | 'briefs'>('scheduler');
   const [running, setRunning] = useState(false);
   const [runResult, setRunResult] = useState<string | null>(null);
+  const [scheduleData, setScheduleData] = useState<any>(null);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [testRecipient, setTestRecipient] = useState('ibrahim.zed24@gmail.com');
   const [briefs, setBriefs] = useState<any[]>([]);
 
+  const fetchSchedule = async () => {
+    setLoadingSchedule(true);
+    try {
+      const res = await fetch('/api/scheduler');
+      const data = await res.json();
+      if (data?.manifest) {
+        setScheduleData(data.manifest);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingSchedule(false);
+    }
+  };
+
   useEffect(() => {
+    fetchSchedule();
     fetch('/api/agents/briefs')
       .then((r) => r.json())
       .then((d) => setBriefs(d.briefs || []))
       .catch(() => {});
   }, []);
 
-  const triggerAgentCycle = async () => {
-    setRunning(true);
-    setRunResult(null);
-    try {
-      const res = await fetch('/api/agents/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'dry_run' }),
-      });
-      const data = await res.json();
-      setRunResult(data.message || 'Autonomous cycle completed successfully');
-    } catch (err: any) {
-      setRunResult(`Execution error: ${err.message}`);
-    } finally {
-      setRunning(false);
-    }
-  };
-
-  const triggerBrowserAction = async (action: 'check' | 'test-send' | 'scan') => {
+  const triggerAgentAction = async (action: string, extra: Record<string, any> = {}) => {
     setRunning(true);
     setRunResult(null);
     try {
@@ -139,326 +133,304 @@ export default function AgentsOutreachPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agent: '4_browser_outreach',
-          action: action,
-          recipient: 'ibrahim.zed24@gmail.com',
+          action,
+          ...extra,
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to run agent action');
-      setRunResult(data.output || JSON.stringify(data));
+      setRunResult(data.output || data.message || JSON.stringify(data));
+      if (action === 'generate') {
+        fetchSchedule();
+      }
     } catch (err: any) {
-      setRunResult(`Execution error: ${err.message}`);
+      setRunResult(`Error: ${err.message}`);
     } finally {
       setRunning(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner / Mission Statement */}
-      <div className="rounded-xl border border-line bg-panel p-6 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
-                <Bot className="h-5 w-5" />
-              </span>
-              <h1 className="text-xl font-bold tracking-tight">Autonomous 5-Agent Mission Control</h1>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                Continuous Engine Active
-              </span>
-            </div>
-            <p className="mt-1.5 text-sm text-muted">
-              Fully automated sales outreach specialist for Valioz Health targeting independent Canadian dental practices (3–7 operatories, non-DSO).
-            </p>
+    <div className="space-y-6 max-w-7xl mx-auto px-4 py-8">
+      {/* Top Banner: Autonomous Status */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-2xl border border-line bg-panel p-6 shadow-sm">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <h1 className="text-xl font-bold tracking-tight text-fg">VALIOZ Health — Autonomous Outreach OS</h1>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={triggerAgentCycle}
-              disabled={running}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-50"
-            >
-              {running ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              {running ? 'Running Handover Cycle...' : 'Run Autonomous Handover'}
-            </button>
-          </div>
+          <p className="text-xs text-muted">
+            5-Agent autonomous pipeline acquiring independent Canadian dental clinics ($1.2M–$3.5M, 3–7 chairs).
+          </p>
         </div>
 
-        {runResult && (
-          <div className="mt-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-700 dark:text-emerald-300">
-            {runResult}
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => triggerAgentAction('test-send', { recipient: testRecipient })}
+            disabled={running}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-teal-700 disabled:opacity-50 transition"
+          >
+            <Send className="h-3.5 w-3.5" />
+            {running ? 'Sending...' : 'Test Send Dual-Brand'}
+          </button>
 
-        {/* Operational Constraints Bar */}
-        <div className="mt-6 grid grid-cols-2 gap-3 border-t border-line pt-4 sm:grid-cols-4">
-          <div className="rounded-lg bg-bg p-3">
-            <p className="text-xs font-medium text-muted">Schedule</p>
-            <p className="mt-1 text-sm font-semibold">Tue, Wed, Thu</p>
-            <p className="text-[11px] text-muted">Excludes Mon & Fri</p>
-          </div>
-          <div className="rounded-lg bg-bg p-3">
-            <p className="text-xs font-medium text-muted">Local Sending Time</p>
-            <p className="mt-1 text-sm font-semibold">08:00 AM Clinic Time</p>
-            <p className="text-[11px] text-muted">ET, CT, MT, PT, AT matched</p>
-          </div>
-          <div className="rounded-lg bg-bg p-3">
-            <p className="text-xs font-medium text-muted">Daily Volume</p>
-            <p className="mt-1 text-sm font-semibold">10 Verified Clinics</p>
-            <p className="text-[11px] text-muted">Max 3 clinics per province</p>
-          </div>
-          <div className="rounded-lg bg-bg p-3">
-            <p className="text-xs font-medium text-muted">DSO Suppression</p>
-            <p className="mt-1 text-sm font-semibold">93 Excluded</p>
-            <p className="text-[11px] text-muted">dentalcorp & 123Dentist blocked</p>
-          </div>
+          <button
+            onClick={() => triggerAgentAction('check')}
+            disabled={running}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-background px-3.5 py-2 text-xs font-semibold text-fg hover:bg-muted/10 disabled:opacity-50 transition"
+          >
+            <ShieldCheck className="h-3.5 w-3.5 text-teal-600" />
+            Check Hostinger Session
+          </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-line gap-2">
+      {/* Execution Feedback Banner */}
+      {runResult && (
+        <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 p-4 text-xs font-mono text-fg overflow-x-auto">
+          <div className="flex items-center justify-between pb-1 border-b border-teal-500/20 mb-2 font-bold text-teal-600">
+            <span>Agent Execution Log</span>
+            <button onClick={() => setRunResult(null)} className="text-muted hover:text-fg">Close</button>
+          </div>
+          <pre className="whitespace-pre-wrap">{runResult}</pre>
+        </div>
+      )}
+
+      {/* Navigation Tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-line pb-2">
         <button
-          onClick={() => setActiveTab('fleet')}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-            activeTab === 'fleet' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-fg'
+          onClick={() => setActiveTab('scheduler')}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+            activeTab === 'scheduler'
+              ? 'bg-teal-600 text-white shadow-sm'
+              : 'text-muted hover:text-fg hover:bg-muted/10'
           }`}
         >
-          <Bot className="h-4 w-4" />
-          5-Agent Fleet
+          <Compass className="h-4 w-4" />
+          Strategic Rotating Scheduler
         </button>
-        <button
-          onClick={() => setActiveTab('queue')}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-            activeTab === 'queue' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-fg'
-          }`}
-        >
-          <Clock className="h-4 w-4" />
-          Outreach Queue (10/day)
-        </button>
+
         <button
           onClick={() => setActiveTab('preview')}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-            activeTab === 'preview' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-fg'
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+            activeTab === 'preview'
+              ? 'bg-teal-600 text-white shadow-sm'
+              : 'text-muted hover:text-fg hover:bg-muted/10'
           }`}
         >
           <Eye className="h-4 w-4" />
-          Dual-Brand Email Preview
+          Live Pure-White Prototype
         </button>
+
+        <button
+          onClick={() => setActiveTab('fleet')}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+            activeTab === 'fleet'
+              ? 'bg-teal-600 text-white shadow-sm'
+              : 'text-muted hover:text-fg hover:bg-muted/10'
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          Fleet Overview
+        </button>
+
         <button
           onClick={() => setActiveTab('briefs')}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-            activeTab === 'briefs' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-fg'
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+            activeTab === 'briefs'
+              ? 'bg-teal-600 text-white shadow-sm'
+              : 'text-muted hover:text-fg hover:bg-muted/10'
           }`}
         >
           <FileText className="h-4 w-4" />
-          Daily Growth Briefs
+          Growth Briefs ({briefs.length})
         </button>
       </div>
 
-      {/* TAB 1: 5-AGENT FLEET */}
-      {activeTab === 'fleet' && (
+      {/* TAB 1: STRATEGIC ROTATING SCHEDULER */}
+      {activeTab === 'scheduler' && (
         <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {AGENTS.map((agent) => (
-              <div key={agent.name} className="flex flex-col justify-between rounded-xl border border-line bg-panel p-5 shadow-sm">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-md bg-teal-500/10 px-2.5 py-1 font-mono text-xs font-semibold text-teal-600 dark:text-teal-400">
-                      {agent.skill}
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                      Ready
-                    </span>
-                  </div>
-
-                  <h3 className="mt-3 text-base font-semibold">{agent.role}</h3>
-                  <p className="mt-1 text-xs text-muted leading-relaxed">{agent.description}</p>
-                </div>
-
-                <div className="mt-4 border-t border-line pt-3">
-                  <div className="flex items-center justify-between text-xs text-muted">
-                    <span>Cadence:</span>
-                    <span className="font-medium text-fg">{agent.schedule}</span>
-                  </div>
-                  {agent.name === '4_browser_outreach' && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <button
-                        onClick={() => triggerBrowserAction('test-send')}
-                        disabled={running}
-                        className="rounded bg-teal-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-teal-700 transition disabled:opacity-50"
-                      >
-                        Test Send Dual-Brand
-                      </button>
-                      <button
-                        onClick={() => triggerBrowserAction('check')}
-                        disabled={running}
-                        className="rounded border border-line px-2.5 py-1 text-[11px] font-medium text-muted hover:text-fg transition disabled:opacity-50"
-                      >
-                        Check Session
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Handover Architecture Pipeline */}
-          <div className="rounded-xl border border-line bg-panel p-6">
-            <h3 className="text-base font-semibold">Autonomous Handover Flow</h3>
-            <p className="mt-1 text-xs text-muted">
-              Every active outreach day, the 5 agents execute in strict linear succession without manual intervention:
-            </p>
-
-            <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center">
-              <div className="flex-1 rounded-lg border border-line bg-bg p-3.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400">
-                  <Bot className="h-3.5 w-3.5" /> 1. Orchestrator
-                </div>
-                <p className="mt-1 text-xs text-muted">Determines 10 clinics, matches local time zones, launches cycle.</p>
-              </div>
-              <ChevronRight className="hidden lg:block h-5 w-5 text-muted shrink-0" />
-
-              <div className="flex-1 rounded-lg border border-line bg-bg p-3.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400">
-                  <Layers className="h-3.5 w-3.5" /> 2. Lead Intel
-                </div>
-                <p className="mt-1 text-xs text-muted">Suppresses DSOs, segregates into Cohort A vs B, checks CASL opt-outs.</p>
-              </div>
-              <ChevronRight className="hidden lg:block h-5 w-5 text-muted shrink-0" />
-
-              <div className="flex-1 rounded-lg border border-line bg-bg p-3.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400">
-                  <Sparkles className="h-3.5 w-3.5" /> 3. Copywriter
-                </div>
-                <p className="mt-1 text-xs text-muted">DSPy + Terse builds 48px dual-brand pure white (#FFFFFF) emails.</p>
-              </div>
-              <ChevronRight className="hidden lg:block h-5 w-5 text-muted shrink-0" />
-
-              <div className="flex-1 rounded-lg border border-line bg-bg p-3.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400">
-                  <Send className="h-3.5 w-3.5" /> 4. Browser Outreach
-                </div>
-                <p className="mt-1 text-xs text-muted">Executes in Hostinger webmail, commits chips, delivers at 08:00 AM local.</p>
-              </div>
-              <ChevronRight className="hidden lg:block h-5 w-5 text-muted shrink-0" />
-
-              <div className="flex-1 rounded-lg border border-line bg-bg p-3.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400">
-                  <ShieldCheck className="h-3.5 w-3.5" /> 5. Pipeline CRM
-                </div>
-                <p className="mt-1 text-xs text-muted">Updates tracker CSV in-place, logs deals, creates $499 Stripe proposals.</p>
-              </div>
+          {/* Cadence Matrix Banner */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="rounded-xl border border-line bg-panel p-4">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-teal-600">Active Outreach Days</div>
+              <div className="mt-1 text-lg font-bold text-fg">Tue, Wed, Thu</div>
+              <div className="mt-0.5 text-xs text-muted">Strict CASL & College Compliance</div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* TAB 2: OUTREACH QUEUE */}
-      {activeTab === 'queue' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold">Active Daily Dispatch Queue</h3>
-              <p className="text-xs text-muted">
-                Exactly 10 verified independent Canadian clinics per active outreach day (Tue/Wed/Thu), scheduled for 08:00 AM in each clinic&apos;s local time zone.
-              </p>
+            <div className="rounded-xl border border-line bg-panel p-4">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-teal-600">Local Send Target</div>
+              <div className="mt-1 text-lg font-bold text-fg">08:00 AM Local</div>
+              <div className="mt-0.5 text-xs text-muted">Atlantic to Pacific Sunrise Progression</div>
             </div>
-            <div className="text-xs text-muted">
-              Showing <span className="font-semibold text-fg">10 of 45</span> verified independent clinics
+
+            <div className="rounded-xl border border-line bg-panel p-4">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-teal-600">Micro-Jitter Spacing</div>
+              <div className="mt-1 text-lg font-bold text-fg">6 – 14 Minutes</div>
+              <div className="mt-0.5 text-xs text-muted">Humanized anti-spam dispatch intervals</div>
+            </div>
+
+            <div className="rounded-xl border border-line bg-panel p-4">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-teal-600">Quality Daily Cap</div>
+              <div className="mt-1 text-lg font-bold text-fg">10 Clinics Max</div>
+              <div className="mt-0.5 text-xs text-muted">Max 3 per province (ON, BC, AB, QC)</div>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-line bg-panel shadow-sm">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-line bg-raised/50 text-muted">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Clinic & City</th>
-                  <th className="px-4 py-3 font-medium">Province / Zone</th>
-                  <th className="px-4 py-3 font-medium">Local Dispatch</th>
-                  <th className="px-4 py-3 font-medium">Recipient</th>
-                  <th className="px-4 py-3 font-medium">Cohort & Offer</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y border-line">
-                {DEMO_QUEUE.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-raised/30 transition-colors">
-                    <td className="px-4 py-3 font-medium text-fg">
-                      <div>{item.clinic_name}</div>
-                      <div className="text-[11px] text-muted">{item.city}, {item.province}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-xs">{item.province}</span>
-                      <div className="text-[11px] text-muted">{item.time_zone}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 rounded bg-bg px-2 py-0.5 font-medium text-fg">
-                        <Clock className="h-3 w-3 text-brand" />
-                        {item.local_send_time}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted">{item.decision_maker}</td>
-                    <td className="px-4 py-3">
-                      {item.cohort === 'A' ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                          Cohort A (Live Site &bull; SEO/GEO)
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-600 dark:text-purple-400">
-                          Cohort B ($499 Web Build)
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                        {item.status}
-                      </span>
-                    </td>
+          {/* Sunrise Cadence Progression Bar */}
+          <div className="rounded-2xl border border-line bg-panel p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Globe2 className="h-4 w-4 text-teal-600" />
+                <h3 className="text-sm font-bold text-fg">Canadian Sunrise Time-Zone Progression</h3>
+              </div>
+              <span className="text-xs text-muted">Follows the working day sunrise East &rarr; West</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+              <div className="rounded-xl bg-teal-500/10 border border-teal-500/30 p-2.5">
+                <div className="font-bold text-teal-700 dark:text-teal-400">1. Atlantic (AT)</div>
+                <div className="text-[11px] text-muted">08:00 AM AT (12:00 UTC)</div>
+                <div className="mt-1 text-[10px] text-teal-600 font-semibold">NS, NB, PE</div>
+              </div>
+              <div className="rounded-xl bg-teal-500/10 border border-teal-500/30 p-2.5">
+                <div className="font-bold text-teal-700 dark:text-teal-400">2. Eastern (ET)</div>
+                <div className="text-[11px] text-muted">08:00 AM ET (13:00 UTC)</div>
+                <div className="mt-1 text-[10px] text-teal-600 font-semibold">ON, QC</div>
+              </div>
+              <div className="rounded-xl bg-teal-500/10 border border-teal-500/30 p-2.5">
+                <div className="font-bold text-teal-700 dark:text-teal-400">3. Central (CT)</div>
+                <div className="text-[11px] text-muted">08:00 AM CT (14:00 UTC)</div>
+                <div className="mt-1 text-[10px] text-teal-600 font-semibold">MB, SK</div>
+              </div>
+              <div className="rounded-xl bg-teal-500/10 border border-teal-500/30 p-2.5">
+                <div className="font-bold text-teal-700 dark:text-teal-400">4. Mountain (MT)</div>
+                <div className="text-[11px] text-muted">08:00 AM MT (15:00 UTC)</div>
+                <div className="mt-1 text-[10px] text-teal-600 font-semibold">AB</div>
+              </div>
+              <div className="rounded-xl bg-teal-500/10 border border-teal-500/30 p-2.5">
+                <div className="font-bold text-teal-700 dark:text-teal-400">5. Pacific (PT)</div>
+                <div className="text-[11px] text-muted">08:00 AM PT (16:00 UTC)</div>
+                <div className="mt-1 text-[10px] text-teal-600 font-semibold">BC</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Today's Rotated Cadence Table */}
+          <div className="rounded-2xl border border-line bg-panel p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-fg">Today&apos;s Strategically Rotated Queue</h3>
+                <p className="text-xs text-muted">
+                  Multi-vector twisting: Subject lines &amp; pitch angles rotate across every recipient to eliminate spam footprint.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={fetchSchedule}
+                  disabled={loadingSchedule}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-background px-3 py-1.5 text-xs font-semibold text-fg hover:bg-muted/10 transition"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${loadingSchedule ? 'animate-spin' : ''}`} />
+                  Refresh Plan
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-line">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-line bg-muted/20 text-muted uppercase tracking-wider font-semibold">
+                  <tr>
+                    <th className="px-4 py-3">Slot</th>
+                    <th className="px-4 py-3">Clinic &amp; Location</th>
+                    <th className="px-4 py-3">Local Time &amp; TZ</th>
+                    <th className="px-4 py-3">Rotated Angle</th>
+                    <th className="px-4 py-3">Twisted Subject Line</th>
+                    <th className="px-4 py-3">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {scheduleData?.schedule?.map((item: ScheduledItem) => (
+                    <tr key={item.queue_index} className="hover:bg-muted/10 transition">
+                      <td className="px-4 py-3 font-mono font-bold text-teal-600">
+                        #{String(item.queue_index).padStart(2, '0')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-fg">{item.clinic_name}</div>
+                        <div className="text-[11px] text-muted">{item.city}, {item.province}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-semibold text-fg">{item.target_local_time}</span>
+                        <div className="text-[10px] text-muted font-mono">{item.timezone}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center rounded-full bg-teal-500/10 px-2.5 py-0.5 text-[11px] font-bold text-teal-600">
+                          {item.angle}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-fg font-medium max-w-xs truncate" title={item.subject}>
+                        {item.subject}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-600">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB 3: DUAL-BRAND EMAIL PREVIEW */}
+      {/* TAB 2: LIVE PROTOTYPE PREVIEW */}
       {activeTab === 'preview' && (
         <div className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-base font-semibold">Live Pure-HTML Component Prototype (No Flat Images)</h3>
+              <h3 className="text-base font-semibold">Live Pure-White HTML Component Prototype</h3>
               <p className="text-xs text-muted">
-                Every component is built as pure HTML/CSS email architecture: responsive cards, metrics, live typography, and SVG charts.
+                100% native HTML components: responsive cards, metrics, live typography, and SVG trend curve.
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full bg-teal-500/10 px-3 py-1 text-xs font-semibold text-teal-600">
-                Live Prototype Mode
-              </span>
             </div>
           </div>
 
-          {/* Interactive Prototype Component */}
           <PrototypeEmail />
         </div>
       )}
 
-      {/* TAB 4: DAILY GROWTH BRIEFS */}
+      {/* TAB 3: FLEET OVERVIEW */}
+      {activeTab === 'fleet' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {AGENTS.map((agent) => (
+            <div key={agent.name} className="rounded-2xl border border-line bg-panel p-5 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-teal-600" />
+                  <span className="font-bold text-sm text-fg">{agent.name}</span>
+                </div>
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
+                  {agent.status}
+                </span>
+              </div>
+              <div className="text-xs font-semibold text-teal-600">{agent.role}</div>
+              <p className="text-xs text-muted leading-relaxed">{agent.description}</p>
+              <div className="border-t border-line pt-2 text-[11px] text-muted flex items-center justify-between">
+                <span>Cadence:</span>
+                <span className="font-medium text-fg">{agent.schedule}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* TAB 4: GROWTH BRIEFS */}
       {activeTab === 'briefs' && (
         <div className="space-y-4">
-          <div>
-            <h3 className="text-base font-semibold">Daily Growth Briefs & Handover Logs</h3>
-            <p className="text-xs text-muted">
-              Autonomous summaries generated after each day&apos;s 10-clinic dispatch cycle.
-            </p>
-          </div>
-
+          <h3 className="text-base font-semibold">Daily Growth Briefs &amp; Handover Logs</h3>
           <div className="space-y-3">
             {briefs.length > 0 ? (
               briefs.map((brief, idx) => (

@@ -28,14 +28,16 @@ except ImportError:
     terse = None
 
 import importlib.util
-native_path = Path(__file__).parent / "native_template.py" if "__file__" in locals() else ROOT / "agents/3_copywriter/native_template.py"
-if native_path.exists():
-    native_spec = importlib.util.spec_from_file_location("native_template", str(native_path))
-    native_module = importlib.util.module_from_spec(native_spec)
-    native_spec.loader.exec_module(native_module)
-    NativeEmailEngine = native_module.NativeEmailEngine
+comp_path = Path(__file__).parent / "components.py" if "__file__" in locals() else ROOT / "agents/3_copywriter/components.py"
+if comp_path.exists():
+    comp_spec = importlib.util.spec_from_file_location("components", str(comp_path))
+    comp_module = importlib.util.module_from_spec(comp_spec)
+    comp_spec.loader.exec_module(comp_module)
+    EmailComponents = comp_module.EmailComponents
 else:
-    NativeEmailEngine = None
+    EmailComponents = None
+
+NativeEmailEngine = EmailComponents
 
 # Sourced Keyword Planner Snapshot
 SNAPSHOT_BARS = [
@@ -49,13 +51,13 @@ class DualBrandTemplateEngine:
     BOOKING_URL = "https://health.valioz.com/"
 
     @classmethod
-    def render_email(cls, clinic: dict, step: str = "01-welcome") -> str:
+    def render_email(cls, clinic: dict, step: str = "01-welcome", angle: str = "DEMAND_SURGE") -> str:
         """
         Render genuine editable native HTML email components.
-        Zero image slices, zero externally hosted graphics.
+        Zero image slices, pure white background, multi-vector angle rotation.
         """
-        if NativeEmailEngine:
-            return NativeEmailEngine.render(clinic, step)
+        if EmailComponents:
+            return EmailComponents.assemble(clinic, step, angle=angle)
         
         name = clinic.get("clinic_name", "Brampton Dental Arts")
         email = clinic.get("email", "")

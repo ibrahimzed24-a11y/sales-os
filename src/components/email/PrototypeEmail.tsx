@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, MapPin, Calendar, Check, ExternalLink, RefreshCw } from 'lucide-react';
+import { Search, MapPin, Calendar, Check, ExternalLink, RefreshCw, Smartphone, Monitor } from 'lucide-react';
 
 interface PrototypeEmailProps {
   clinicName?: string;
@@ -13,252 +13,354 @@ interface PrototypeEmailProps {
 export function PrototypeEmail({
   clinicName = 'Brampton Dental Arts',
   city = 'Brampton',
-  logoUrl = 'https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets/clinic-logos/brampton-dental-arts.png',
+  logoUrl = 'https://osv.nilesupplies.com/assets/clinic-logos/brampton-dental-arts.png',
   websiteUrl = 'https://bramptondentalarts.com/',
 }: PrototypeEmailProps) {
   const [activeClinic, setActiveClinic] = useState(clinicName);
   const [activeCity, setActiveCity] = useState(city);
+  const [activeAngle, setActiveAngle] = useState<'DEMAND_SURGE' | 'MAP_RANK_DEFENSE' | 'INTAKE_OPTIMIZATION' | 'PRACTICE_BENCHMARK' | 'AI_OVERVIEW_GEO'>('DEMAND_SURGE');
+  const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
+
+  const getHeroContent = () => {
+    switch (activeAngle) {
+      case 'MAP_RANK_DEFENSE':
+        return {
+          eyebrow: `${activeCity.toUpperCase()} LOCAL RANK & 3-PACK DEFENSE`,
+          headline: <>Defending <span className="text-[#00AFA5]">{activeClinic}</span> against corporate rollups in {activeCity}.</>,
+          lead: `Here is how ${activeClinic}'s Google Maps footprint benchmarks against private and DSO practices in ${activeCity}.`
+        };
+      case 'INTAKE_OPTIMIZATION':
+        return {
+          eyebrow: `${activeCity.toUpperCase()} DIGITAL INTAKE AUDIT`,
+          headline: <>Converting local patient interest into booked chairs in <span className="text-[#00AFA5]">{activeCity}.</span></>,
+          lead: `A fast diagnostic of ${activeClinic}'s inquiry-to-appointment conversion and after-hours patient capture.`
+        };
+      case 'PRACTICE_BENCHMARK':
+        return {
+          eyebrow: `${activeCity.toUpperCase()} PRACTICE ACQUISITION BENCHMARK`,
+          headline: <>High-production dental demand in <span className="text-[#00AFA5]">{activeCity}.</span></>,
+          lead: `Comparative patient discovery metrics and restorative treatment volume benchmarks for ${activeClinic}.`
+        };
+      case 'AI_OVERVIEW_GEO':
+        return {
+          eyebrow: `${activeCity.toUpperCase()} AI OVERVIEW & CONVERSATIONAL VISIBILITY`,
+          headline: <>How {activeCity} patients discover <span className="text-[#00AFA5]">{activeClinic}</span> on Google AI.</>,
+          lead: `Analysis of search queries structured for Google AI Overviews and modern voice patient acquisition.`
+        };
+      default: // DEMAND_SURGE
+        return {
+          eyebrow: `${activeCity.toUpperCase()} MARKET INSIGHTS`,
+          headline: <>More patients are searching for dental care in <span className="text-[#00AFA5]">{activeCity}.</span></>,
+          lead: `Here's a quick growth audit for ${activeClinic} and what it means for your next stage of growth.`
+        };
+    }
+  };
+
+  const hero = getHeroContent();
 
   return (
-    <div className="mx-auto max-w-[640px] rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 text-slate-800 shadow-xl">
-      {/* 1. Header Component */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5">
-        <div className="flex items-center gap-3">
-          <img
-            src="https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets/VALIOZ_Health_Primary.png"
-            alt="VALIOZ Health"
-            className="h-7 w-auto object-contain"
-          />
-          <span className="text-slate-300 font-light text-xl">|</span>
-          <img
-            src={logoUrl}
-            alt={activeClinic}
-            className="h-8 max-w-[150px] w-auto object-contain"
-          />
+    <div className="space-y-4">
+      {/* Control Bar: Angle Selector & Viewport Toggle */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-panel p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-muted">Twisted Pitch Angle:</span>
+          {[
+            { id: 'DEMAND_SURGE', label: '1. Demand Surge' },
+            { id: 'MAP_RANK_DEFENSE', label: '2. Map Defense' },
+            { id: 'INTAKE_OPTIMIZATION', label: '3. Intake Audit' },
+            { id: 'PRACTICE_BENCHMARK', label: '4. Benchmark' },
+            { id: 'AI_OVERVIEW_GEO', label: '5. AI/GEO' },
+          ].map((a) => (
+            <button
+              key={a.id}
+              onClick={() => setActiveAngle(a.id as any)}
+              className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                activeAngle === a.id
+                  ? 'bg-teal-600 text-white shadow-sm'
+                  : 'bg-muted/10 text-fg hover:bg-muted/20'
+              }`}
+            >
+              {a.label}
+            </button>
+          ))}
         </div>
-        <div className="self-start sm:self-auto">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">
-            📊 Growth Audit
-          </span>
-        </div>
-      </div>
 
-      {/* 2. Hero Component */}
-      <div className="pt-6 pb-6">
-        <div className="text-[11px] font-extrabold uppercase tracking-widest text-teal-600 mb-2">
-          {activeCity.toUpperCase()} MARKET INSIGHTS
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
-          More patients are searching for dental care in <span className="text-teal-600">{activeCity}.</span>
-        </h1>
-        <p className="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
-          Here's a quick growth audit for {activeClinic} and what it means for your next stage of growth.
-        </p>
-        <div className="mt-4">
-          <a
-            href="https://health.valioz.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full bg-teal-600 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-teal-700 transition"
+        <div className="flex items-center gap-1 border border-line rounded-lg p-0.5 bg-background">
+          <button
+            onClick={() => setViewMode('desktop')}
+            className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition ${
+              viewMode === 'desktop' ? 'bg-teal-600 text-white' : 'text-muted hover:text-fg'
+            }`}
           >
-            View Your Full Growth Audit &rarr;
-          </a>
+            <Monitor className="h-3.5 w-3.5" /> Desktop (600px)
+          </button>
+          <button
+            onClick={() => setViewMode('mobile')}
+            className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition ${
+              viewMode === 'mobile' ? 'bg-teal-600 text-white' : 'text-muted hover:text-fg'
+            }`}
+          >
+            <Smartphone className="h-3.5 w-3.5" /> Mobile Phone (375px)
+          </button>
         </div>
       </div>
 
-      {/* 3. Metrics Grid Component */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-6">
-        <div className="rounded-xl border border-teal-100 bg-[#F0F8F9] p-3.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-100 text-[10px]">🔍</span>
-            Local Search Demand
-          </div>
-          <div className="mt-2 text-xl font-extrabold text-slate-900">
-            ~18.4K <span className="text-xs font-medium text-slate-500">/mo</span>
-          </div>
-          <div className="mt-0.5 text-[11px] text-slate-500">Dental services in {activeCity}</div>
-        </div>
-
-        <div className="rounded-xl border border-teal-100 bg-[#F0F8F9] p-3.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-100 text-[10px]">📍</span>
-            Map Searches
-          </div>
-          <div className="mt-2 text-xl font-extrabold text-teal-600">
-            +37% &nearr;
-          </div>
-          <div className="mt-0.5 text-[11px] text-slate-500">vs. last 3 months</div>
-        </div>
-
-        <div className="rounded-xl border border-teal-100 bg-[#F0F8F9] p-3.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-100 text-[10px]">📅</span>
-            Booking Intent
-          </div>
-          <div className="mt-2">
-            <span className="inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-extrabold text-emerald-700">
-              High
-            </span>
-          </div>
-          <div className="mt-1 text-[11px] text-slate-500">Implants · Invisalign · Emergency</div>
-        </div>
-      </div>
-
-      {/* 4. Key Opportunities Component */}
-      <div className="pb-6">
-        <h2 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3">
-          Your Key Opportunities
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600 font-extrabold text-sm mb-2.5">
-              G
-            </div>
-            <div className="text-sm font-bold text-slate-900">Stronger Local Visibility</div>
-            <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-              Improve your Maps presence and "near me" rankings.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 font-extrabold text-sm mb-2.5">
-              ✦
-            </div>
-            <div className="text-sm font-bold text-slate-900">More High-Value Patients</div>
-            <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-              Capture demand for implants, Invisalign, and cosmetic care.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600 font-extrabold text-sm mb-2.5">
-              📊
-            </div>
-            <div className="text-sm font-bold text-slate-900">Turn Interest into Bookings</div>
-            <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-              A faster, smoother digital patient journey.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* 5. Demand & Opportunity Two-Column Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pb-6">
-        {/* Canadian Demand Card */}
-        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="text-xs font-extrabold text-slate-900 mb-3">Canadian Dental Search Demand</div>
-          <div className="space-y-2.5">
-            <div>
-              <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
-                <span>General dentistry</span>
-                <span className="text-teal-600 font-bold">100K – 1M <span className="text-[9px] text-slate-400 font-normal">/mo</span></span>
-              </div>
-              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-teal-500 rounded-full w-[94%]" />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
-                <span>Emergency care</span>
-                <span className="text-slate-800 font-bold">10K – 100K <span className="text-[9px] text-slate-400 font-normal">/mo</span></span>
-              </div>
-              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-slate-800 rounded-full w-[52%]" />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
-                <span>Cosmetic & implants</span>
-                <span className="text-teal-500 font-bold">10K – 100K <span className="text-[9px] text-slate-400 font-normal">/mo</span></span>
-              </div>
-              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-teal-400 rounded-full w-[41%]" />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
-                <span>CDCP inquiries</span>
-                <span className="text-teal-600 font-bold">10K – 100K <span className="text-[9px] text-slate-400 font-normal">/mo</span></span>
-              </div>
-              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-teal-600 rounded-full w-[38%]" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Opportunity Card */}
-        <div className="rounded-xl bg-gradient-to-br from-[#0B253A] to-[#173A55] p-5 text-white flex flex-col justify-between shadow-sm">
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-teal-300 mb-2">
-              <span>🎯</span> The Opportunity
-            </div>
-            <p className="text-xs sm:text-sm text-slate-100 leading-relaxed">
-              Patients are already looking. The next step is making <b className="text-white">{activeClinic}</b> the easiest choice to book.
-            </p>
-          </div>
-          <div className="pt-3">
-            <svg width="100%" height="40" viewBox="0 0 240 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 34C40 34 60 24 90 24C120 24 140 14 170 14C200 14 215 6 236 3" stroke="#00F0DB" strokeWidth="2.5" strokeLinecap="round"/>
-              <circle cx="90" cy="24" r="3" fill="#00F0DB"/>
-              <circle cx="170" cy="14" r="3" fill="#00F0DB"/>
-              <circle cx="236" cy="3" r="4" fill="#FFFFFF" stroke="#00F0DB" strokeWidth="2"/>
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      {/* 6. VALIOZ Difference Bar Component */}
-      <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3 mb-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-600 gap-2">
-          <span className="font-extrabold text-slate-900">The VALIOZ Difference</span>
-          <div className="flex items-center gap-2">
-            <span>👥 A dedicated healthcare team</span>
-            <span className="text-teal-600 font-bold">+</span>
-            <span>🤖 AI Growth Agent</span>
-            <span className="text-teal-600 font-bold">+</span>
-            <span>📈 Clear results</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 7. Primary CTA Component */}
-      <div className="text-center py-4">
-        <a
-          href="https://health.valioz.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block rounded-full bg-teal-600 px-8 py-4 text-base font-extrabold text-white shadow-lg hover:bg-teal-700 transition"
+      {/* Email Container (Simulated Pure White Body) */}
+      <div className="w-full flex justify-center bg-slate-100 p-4 sm:p-8 rounded-2xl overflow-x-auto">
+        <div
+          style={{ width: viewMode === 'mobile' ? '375px' : '600px' }}
+          className="bg-white border border-slate-200 text-[#172C46] shadow-2xl transition-all duration-300 rounded-2xl p-6 sm:p-8"
         >
-          📅 Book Your Free Growth Audit &rarr;
-        </a>
-      </div>
+          {/* 1. Dual-Brand Header Component */}
+          <div className="flex items-center justify-between border-b border-[#EEF3F4] pb-4 mb-6">
+            <div className="flex items-center gap-3">
+              <img
+                src="https://osv.nilesupplies.com/assets/valioz-logo-horizontal.png"
+                alt="VALIOZ Health"
+                className="h-7 sm:h-8 w-auto object-contain"
+              />
+              <span className="text-[#CBD5E1] text-xl font-light">|</span>
+              <img
+                src={logoUrl}
+                alt={activeClinic}
+                className="h-7 sm:h-8 max-w-[140px] sm:max-w-[170px] w-auto object-contain"
+              />
+            </div>
+            {viewMode === 'desktop' && (
+              <span className="inline-flex items-center rounded-full bg-[#E6F8F7] px-3 py-1 text-xs font-bold text-[#008E91]">
+                📊 Growth Audit
+              </span>
+            )}
+          </div>
 
-      {/* 8. Reply Prompt & Footer */}
-      <div className="text-center text-xs sm:text-sm text-slate-600 mb-6">
-        Or simply reply <strong className="text-slate-900">"YES"</strong> to this email, and we'll send you the full diagnostic video.
-      </div>
+          {/* 2. Hero Section: Two-Column on Desktop, Stacked on Mobile */}
+          <div className={`mb-7 ${viewMode === 'desktop' ? 'grid grid-cols-12 gap-5 items-center' : 'space-y-4'}`}>
+            <div className={viewMode === 'desktop' ? 'col-span-7' : 'w-full'}>
+              <div className="text-[11px] font-extrabold uppercase tracking-widest text-[#00AFA5] mb-2">
+                {hero.eyebrow}
+              </div>
+              <h1 className="text-xl sm:text-2xl font-extrabold leading-snug tracking-tight text-[#172C46] mb-3">
+                {hero.headline}
+              </h1>
+              <p className="text-xs sm:text-sm text-[#4A5E6B] leading-relaxed mb-4">
+                {hero.lead}
+              </p>
+              <div>
+                <a
+                  href="https://health.valioz.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block rounded-full bg-[#00AFA5] px-6 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-[#009b93] transition"
+                >
+                  View Your Full Growth Audit &rarr;
+                </a>
+              </div>
+            </div>
 
-      <div className="border-t border-b border-slate-100 py-3 mb-4 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
-        <div>
-          <strong className="text-teal-600">VALIOZ Health</strong> | Healthcare Digital Growth
+            <div className={viewMode === 'desktop' ? 'col-span-5' : 'w-full pt-2'}>
+              <img
+                src="https://osv.nilesupplies.com/assets/dental-chair-hero.jpg"
+                alt="Modern Dental Operatory"
+                className="w-full rounded-xl object-cover shadow-sm border border-slate-100 max-h-[220px]"
+              />
+            </div>
+          </div>
+
+          {/* 3. Three Stat Cards Component */}
+          <div className={`grid ${viewMode === 'desktop' ? 'grid-cols-3' : 'grid-cols-1'} gap-2.5 mb-7`}>
+            <div className="rounded-xl border border-[#DDEEF0] bg-[#F0F8F9] p-3.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#556C7A]">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#E1F3F4] text-[10px]">🔍</span>
+                Local Search Demand
+              </div>
+              <div className="mt-2 text-xl font-extrabold text-[#172C46]">
+                ~18.4K <span className="text-xs font-semibold text-[#788F9D]">/mo</span>
+              </div>
+              <div className="mt-0.5 text-[10px] text-[#788F9D]">Dental services in {activeCity}</div>
+            </div>
+
+            <div className="rounded-xl border border-[#DDEEF0] bg-[#F0F8F9] p-3.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#556C7A]">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#E1F3F4] text-[10px]">📍</span>
+                Map Searches
+              </div>
+              <div className="mt-2 text-xl font-extrabold text-[#00AFA5]">
+                +37% &nearr;
+              </div>
+              <div className="mt-0.5 text-[10px] text-[#788F9D]">vs. last 3 months</div>
+            </div>
+
+            <div className="rounded-xl border border-[#DDEEF0] bg-[#F0F8F9] p-3.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#556C7A]">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#E1F3F4] text-[10px]">📅</span>
+                Booking Intent
+              </div>
+              <div className="mt-2">
+                <span className="inline-block rounded-full bg-[#E2F7EB] px-2.5 py-0.5 text-xs font-extrabold text-[#00A86B]">
+                  High
+                </span>
+              </div>
+              <div className="mt-1 text-[10px] text-[#788F9D]">Implants · Invisalign · Emergency</div>
+            </div>
+          </div>
+
+          {/* 4. Key Opportunities Component */}
+          <div className="mb-7">
+            <h2 className="text-base font-extrabold text-[#172C46] mb-3">
+              Your Key Opportunities
+            </h2>
+            <div className={`grid ${viewMode === 'desktop' ? 'grid-cols-3' : 'grid-cols-1'} gap-2.5`}>
+              <div className="rounded-xl border border-[#E6EFF0] bg-white p-3.5 shadow-sm">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#EBF9F8] text-[#00AFA5] font-extrabold text-xs mb-2">
+                  G
+                </div>
+                <div className="text-xs font-bold text-[#172C46]">Stronger Local Visibility</div>
+                <p className="mt-1 text-[11px] text-[#607784] leading-relaxed">
+                  Improve your Maps presence and &quot;near me&quot; rankings.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-[#E6EFF0] bg-white p-3.5 shadow-sm">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#EFF4FE] text-[#3B82F6] font-extrabold text-xs mb-2">
+                  ✦
+                </div>
+                <div className="text-xs font-bold text-[#172C46]">More High-Value Patients</div>
+                <p className="mt-1 text-[11px] text-[#607784] leading-relaxed">
+                  Capture demand for implants, Invisalign, and cosmetic care.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-[#E6EFF0] bg-white p-3.5 shadow-sm">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F5EEFD] text-[#8B5CF6] font-extrabold text-xs mb-2">
+                  📊
+                </div>
+                <div className="text-xs font-bold text-[#172C46]">Turn Interest into Bookings</div>
+                <p className="mt-1 text-[11px] text-[#607784] leading-relaxed">
+                  A faster, smoother digital patient journey.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 5. Demand & Opportunity Two-Column Row */}
+          <div className={`grid ${viewMode === 'desktop' ? 'grid-cols-2' : 'grid-cols-1'} gap-3 mb-7`}>
+            {/* Canadian Dental Search Demand */}
+            <div className="rounded-xl border border-[#E6EFF0] bg-white p-4 shadow-sm">
+              <div className="text-xs font-extrabold text-[#172C46] mb-3">Canadian Dental Search Demand</div>
+              <div className="space-y-2">
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-[#2D4352] mb-1">
+                    <span>General dentistry</span>
+                    <span className="text-[#00AFA5] font-bold">100K – 1M <span className="text-[9px] text-[#788F9D] font-normal">/mo</span></span>
+                  </div>
+                  <div className="h-1.5 w-full bg-[#EDF5F5] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#00AFA5] rounded-full w-[94%]" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-[#2D4352] mb-1">
+                    <span>Emergency care</span>
+                    <span className="text-[#173A55] font-bold">10K – 100K <span className="text-[9px] text-[#788F9D] font-normal">/mo</span></span>
+                  </div>
+                  <div className="h-1.5 w-full bg-[#EDF5F5] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#173A55] rounded-full w-[52%]" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-[#2D4352] mb-1">
+                    <span>Cosmetic &amp; implants</span>
+                    <span className="text-[#3BA59F] font-bold">10K – 100K <span className="text-[9px] text-[#788F9D] font-normal">/mo</span></span>
+                  </div>
+                  <div className="h-1.5 w-full bg-[#EDF5F5] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#7EDAD4] rounded-full w-[41%]" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-[#2D4352] mb-1">
+                    <span>CDCP inquiries</span>
+                    <span className="text-[#00AFA5] font-bold">10K – 100K <span className="text-[9px] text-[#788F9D] font-normal">/mo</span></span>
+                  </div>
+                  <div className="h-1.5 w-full bg-[#EDF5F5] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#00AFA5] rounded-full w-[38%]" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Dark Opportunity Card */}
+            <div className="rounded-xl bg-[#0F2438] p-4 text-white flex flex-col justify-between shadow-sm">
+              <div>
+                <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-[#00F0DB] mb-2">
+                  <span>🎯</span> The Opportunity
+                </div>
+                <p className="text-xs text-[#E1E9EE] leading-relaxed">
+                  Patients are already looking. The next step is making <b className="text-white">{activeClinic}</b> the easiest choice to book.
+                </p>
+              </div>
+              <div className="pt-3">
+                <svg width="100%" height="40" viewBox="0 0 240 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 34C40 34 60 24 90 24C120 24 140 14 170 14C200 14 215 6 236 3" stroke="#00F0DB" strokeWidth="2.5" strokeLinecap="round"/>
+                  <circle cx="90" cy="24" r="3" fill="#00F0DB"/>
+                  <circle cx="170" cy="14" r="3" fill="#00F0DB"/>
+                  <circle cx="236" cy="3" r="4" fill="#FFFFFF" stroke="#00F0DB" strokeWidth="2"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* 6. The VALIOZ Difference Bar Component */}
+          <div className="rounded-xl border border-[#E6EFF0] bg-[#F7FAFB] p-3 mb-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#788F9D] gap-2">
+              <span className="font-extrabold text-[#172C46]">The VALIOZ Difference</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span>👥 Dedicated team</span>
+                <span className="text-[#00AFA5] font-bold">+</span>
+                <span>🤖 AI Growth Agent</span>
+                <span className="text-[#00AFA5] font-bold">+</span>
+                <span>📈 Clear results</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 7. Primary CTA Component */}
+          <div className="text-center py-2 mb-4">
+            <a
+              href="https://health.valioz.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block rounded-full bg-[#00AFA5] px-7 py-3 text-sm font-extrabold text-white shadow-lg hover:bg-[#009b93] transition tracking-wide"
+            >
+              📅 Book Your Free Growth Audit &rarr;
+            </a>
+          </div>
+
+          {/* 8. Reply Prompt & Footer Component */}
+          <div className="text-center text-xs text-[#556C7A] mb-5">
+            Or simply reply <strong className="text-[#172C46]">&ldquo;YES&rdquo;</strong> to this email, and we&apos;ll send you the full diagnostic video.
+          </div>
+
+          <div className="border-t border-b border-[#EAEFEF] py-3 mb-4 flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#556C7A] gap-2">
+            <div>
+              <strong className="text-[#00AFA5]">VALIOZ Health</strong> | Healthcare Digital Growth
+            </div>
+            <div className="flex items-center gap-3">
+              <a href="https://health.valioz.com/" target="_blank" rel="noopener noreferrer" className="hover:text-[#172C46]">
+                health.valioz.com
+              </a>
+              <span>·</span>
+              <a href="mailto:sales@health.valioz.com" className="hover:text-[#172C46]">
+                sales@health.valioz.com
+              </a>
+            </div>
+          </div>
+
+          <div className="text-center text-[10px] text-[#8B9FA8] leading-relaxed">
+            This brief is prepared exclusively for {activeClinic}. Data reflects Canada-wide ranges from Google Ads Keyword Planner (2026-11-09) and is for planning purposes only. · <a href={`https://health.valioz.com/unsubscribe/?clinic=${encodeURIComponent(activeClinic)}`} className="underline hover:text-[#556C7A]">Unsubscribe</a>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <a href="https://health.valioz.com/" target="_blank" rel="noopener noreferrer" className="hover:text-slate-800">
-            health.valioz.com
-          </a>
-          <span>·</span>
-          <a href="mailto:sales@health.valioz.com" className="hover:text-slate-800">
-            sales@health.valioz.com
-          </a>
-        </div>
-      </div>
-
-      <div className="text-center text-[10px] text-slate-400 leading-relaxed">
-        This brief is prepared exclusively for {activeClinic}. Data reflects Canada-wide ranges from Google Ads Keyword Planner (2026-11-09) and is for planning purposes only. · <a href={`https://health.valioz.com/unsubscribe/?clinic=${encodeURIComponent(activeClinic)}`} className="underline hover:text-slate-600">Unsubscribe</a>
       </div>
     </div>
   );

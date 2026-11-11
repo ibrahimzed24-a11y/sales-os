@@ -277,17 +277,26 @@ print(json.dumps({{"success": toast_seen, "to": to_addr, "subject": subj}}))
                         pass
         return {"success": False, "error": res["stderr"] or res["stdout"]}
 
-    def send_test_email(self, test_recipient: str, clinic_slug: str = "brampton-dental-arts") -> dict:
-        """Send a test personalized dual-branded email to a verified test address."""
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        html_path = ROOT / f"dist/outreach-queue/{date_str}/{clinic_slug}/01-welcome.html"
-        if not html_path.exists():
-            # If today's queue doesn't have it, look in latest queue
-            candidates = list(ROOT.glob(f"dist/outreach-queue/*/{clinic_slug}/01-welcome.html"))
-            if candidates:
-                html_path = candidates[-1]
-            else:
-                return {"success": False, "error": f"Sample HTML for {clinic_slug} not found"}
+    def send_test_email(self, test_recipient: str, clinic_slug: str = "brampton-dental-arts", angle: str = "DEMAND_SURGE") -> dict:
+        """Send a test personalized dual-branded email using the fresh pure-white native component prototype."""
+        import importlib
+        try:
+            comp_mod = importlib.import_module("agents.3_copywriter.components")
+            clinic = {
+                "clinic_name": "Brampton Dental Arts",
+                "city": "Brampton",
+                "slug": clinic_slug,
+                "email": test_recipient,
+                "doctor_last_name": "Sheikh",
+                "resolved_website_url": "https://bramptondentalarts.com/"
+            }
+            html_content = comp_mod.EmailComponents.assemble(clinic, step="01-welcome", angle=angle)
+            test_dir = ROOT / "dist/outreach-queue/test"
+            test_dir.mkdir(parents=True, exist_ok=True)
+            html_path = test_dir / "test_email.html"
+            html_path.write_text(html_content, encoding="utf-8")
+        except Exception as e:
+            html_path = ROOT / f"dist/outreach-queue/test/test_email.html"
 
         subject = f"[TEST] Dr. Sheikh, your Brampton Dental Arts growth audit (VALIOZ Health)"
         print(f"=== DISPATCHING TEST EMAIL ===")
