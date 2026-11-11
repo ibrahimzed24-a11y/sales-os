@@ -27,7 +27,7 @@ class BrowserOutreachAgent:
             input=py_script.encode("utf-8"),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=60
+            timeout=120
         )
         stdout = process.stdout.decode("utf-8", errors="ignore").strip()
         stderr = process.stderr.decode("utf-8", errors="ignore").strip()
@@ -92,8 +92,7 @@ time.sleep(1)
 url = page_info()["url"]
 if "/mailboxes/INBOX" not in url or "/INBOX." in url:
     goto_url("https://mail.hostinger.com/0/mailboxes/INBOX")
-    wait_for_load()
-    time.sleep(2)
+    time.sleep(3)
 
 # Click 'New message'
 click_expr = \"\"\"(function(){{
@@ -280,6 +279,8 @@ print(json.dumps({{"success": toast_seen, "to": to_addr, "subject": subj}}))
     def send_test_email(self, test_recipient: str, clinic_slug: str = "brampton-dental-arts", angle: str = "DEMAND_SURGE") -> dict:
         """Send a test personalized dual-branded email using the fresh pure-white native component prototype."""
         import importlib
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
         try:
             comp_mod = importlib.import_module("agents.3_copywriter.components")
             clinic = {
