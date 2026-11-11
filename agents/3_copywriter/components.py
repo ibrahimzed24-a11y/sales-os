@@ -1,8 +1,8 @@
 """
-Valioz Health - Autonomous Email Component Architecture.
-Builds pure-HTML/CSS email components as a responsive, accessible prototype.
+VALIOZ Health — Autonomous Email Component Architecture.
+Modern, responsive email components, smart cards, and readability perfection.
 Pure white background (#ffffff), zero flat image slices for email body content.
-Dual-brand header with public CDN-hosted assets.
+Dual-brand header with public CDN-hosted assets and complete sequence support.
 """
 
 import urllib.parse
@@ -16,28 +16,28 @@ class EmailComponents:
     BOOKING_URL = "https://health.valioz.com/"
 
     @classmethod
-    def header(cls, clinic_name: str, clinic_logo_url: str, clinic_site: str = "https://health.valioz.com/") -> str:
-        """Dual-Brand Header Component with Growth Audit badge."""
+    def header(cls, clinic_name: str, clinic_logo_url: str, clinic_site: str = "https://health.valioz.com/", badge_text: str = "Growth Audit") -> str:
+        """Dual-Brand Header Component with live Growth Audit badge."""
         logo_img = (
-            f'<img src="{clinic_logo_url}" height="32" alt="{clinic_name}" '
-            f'style="height:32px;max-width:180px;width:auto;display:block;border:0;object-fit:contain;">'
+            f'<img src="{clinic_logo_url}" height="32" alt="{clinic_name}" class="clinic-logo-img" '
+            f'style="height:32px;max-width:170px;width:auto;display:block;border:0;object-fit:contain;">'
             if clinic_logo_url else
-            f'<span style="font-size:14px;font-weight:700;color:#172C46;font-family:Arial,sans-serif;">{clinic_name}</span>'
+            f'<span style="font-size:13px;font-weight:700;color:#142C49;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif;">{clinic_name}</span>'
         )
 
         return f"""
         <!-- COMPONENT: Dual-Brand Header -->
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-bottom:1px solid #EEF3F4;padding-bottom:18px;margin-bottom:24px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-bottom:1px solid #EEF3F4;padding-bottom:16px;margin-bottom:24px;">
           <tr>
             <td valign="middle" align="left">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td valign="middle" style="padding-right:12px;">
                     <a href="https://valioz.com/" target="_blank" style="text-decoration:none;">
-                      <img src="{cls.VALIOZ_LOGO_URL}" height="32" alt="VALIOZ Health" style="height:32px;width:auto;display:block;border:0;">
+                      <img src="{cls.VALIOZ_LOGO_URL}" height="30" alt="VALIOZ Health" class="valioz-logo-img" style="height:30px;width:auto;display:block;border:0;">
                     </a>
                   </td>
-                  <td valign="middle" style="padding-right:12px;color:#CBD5E1;font-size:22px;font-weight:300;line-height:1;">|</td>
+                  <td valign="middle" style="padding-right:12px;color:#CBD5E1;font-size:20px;font-weight:300;line-height:1;">|</td>
                   <td valign="middle">
                     <a href="{clinic_site}" target="_blank" style="text-decoration:none;">
                       {logo_img}
@@ -47,8 +47,8 @@ class EmailComponents:
               </table>
             </td>
             <td valign="middle" align="right" class="hide-mobile">
-              <div style="background-color:#E6F8F7;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;color:#008E91;letter-spacing:0.3px;white-space:nowrap;display:inline-block;">
-                📊 Growth Audit
+              <div style="background-color:#E6F8F7;border-radius:20px;padding:5px 13px;font-size:11px;font-weight:700;color:#008E91;letter-spacing:0.3px;white-space:nowrap;display:inline-block;">
+                📊 {badge_text}
               </div>
             </td>
           </tr>
@@ -56,28 +56,55 @@ class EmailComponents:
         """
 
     @classmethod
-    def hero(cls, clinic_name: str, city: str, angle: str = "DEMAND_SURGE", booking_url: str = None) -> str:
+    def hero(cls, clinic_name: str, city: str, step: str = "01-welcome", angle: str = "DEMAND_SURGE", booking_url: str = None) -> str:
         """Two-Column Hero Insights Component with Operatory Photo."""
         url = booking_url or cls.BOOKING_URL
         city_upper = (city or "Local").upper()
 
-        # Strategic Angle Twisting for Headline & Lead
-        if angle == "MAP_RANK_DEFENSE":
-            eyebrow = f"{city_upper} LOCAL RANK &amp; 3-PACK DEFENSE"
-            headline = f'Defending <span style="color:#00AFA5;">{clinic_name}</span> against corporate rollups in {city}.'
-            lead = f"Here is how {clinic_name}'s Google Maps footprint benchmarks against private and DSO practices in {city}."
-        elif angle == "INTAKE_OPTIMIZATION":
-            eyebrow = f"{city_upper} DIGITAL INTAKE AUDIT"
-            headline = f'Converting local patient interest into booked chairs in <span style="color:#00AFA5;">{city}.</span>'
-            lead = f"A fast diagnostic of {clinic_name}'s inquiry-to-appointment conversion and after-hours patient capture."
-        elif angle == "PRACTICE_BENCHMARK":
-            eyebrow = f"{city_upper} PRACTICE ACQUISITION BENCHMARK"
-            headline = f'High-production dental demand in <span style="color:#00AFA5;">{city}.</span>'
-            lead = f"Comparative patient discovery metrics and restorative treatment volume benchmarks for {clinic_name}."
-        else: # DEMAND_SURGE (Default)
-            eyebrow = f"{city_upper} MARKET INSIGHTS"
-            headline = f'More patients are searching for dental care in <span style="color:#00AFA5;">{city}.</span>'
-            lead = f"Here's a quick growth audit for {clinic_name} and what it means for your next stage of growth."
+        # Step 2: Case Study
+        if step == "02-case-study":
+            eyebrow = f"{city_upper} PRACTICE BENCHMARK &bull; CASE STUDY"
+            headline = f'How leading independent clinics in {city} protect their <span style="color:#00AFA5;">patient intake.</span>'
+            lead = f"A comparative look at how {clinic_name}'s digital presence benchmarks against local practices capturing high-production implant and Invisalign cases."
+            cta_text = "View Comparative Case Study &rarr;"
+
+        # Step 3: Value Add (Diagnostic Teardown)
+        elif step == "03-value-add":
+            eyebrow = f"{city_upper} AFTER-HOURS INTAKE TEARDOWN"
+            headline = f'Are patients searching after 5 PM booking with <span style="color:#00AFA5;">{clinic_name}?</span>'
+            lead = f"Over 43% of local dental inquiries happen outside operatory hours. Here's a 3-minute diagnostic teardown on capturing those lost bookings."
+            cta_text = "Watch 3-Min Intake Teardown &rarr;"
+
+        # Step 4: Breakup (Final Resource Handoff)
+        elif step == "04-breakup":
+            eyebrow = f"{city_upper} DIAGNOSTIC ARCHIVE &bull; FINAL BRIEF"
+            headline = f'Archiving {clinic_name}&apos;s growth diagnostic for <span style="color:#00AFA5;">{city}.</span>'
+            lead = f"We are closing out this quarter's private practice audit for {city}. Leaving your interactive diagnostic access open in case your team reviews it later."
+            cta_text = "Access Permanent Audit &rarr;"
+
+        # Step 1: 01-welcome (Default with Angle Rotation)
+        else:
+            if angle == "MAP_RANK_DEFENSE":
+                eyebrow = f"{city_upper} LOCAL RANK &amp; 3-PACK DEFENSE"
+                headline = f'Defending <span style="color:#00AFA5;">{clinic_name}</span> against corporate rollups in {city}.'
+                lead = f"Here is how {clinic_name}'s Google Maps footprint benchmarks against private and DSO practices in {city}."
+            elif angle == "INTAKE_OPTIMIZATION":
+                eyebrow = f"{city_upper} DIGITAL INTAKE AUDIT"
+                headline = f'Converting local patient interest into booked chairs in <span style="color:#00AFA5;">{city}.</span>'
+                lead = f"A fast diagnostic of {clinic_name}'s inquiry-to-appointment conversion and after-hours patient capture."
+            elif angle == "PRACTICE_BENCHMARK":
+                eyebrow = f"{city_upper} PRACTICE ACQUISITION BENCHMARK"
+                headline = f'High-production dental demand in <span style="color:#00AFA5;">{city}.</span>'
+                lead = f"Comparative patient discovery metrics and restorative treatment volume benchmarks for {clinic_name}."
+            elif angle == "AI_OVERVIEW_GEO":
+                eyebrow = f"{city_upper} AI OVERVIEWS &amp; CONVERSATIONAL SEARCH"
+                headline = f'How {city} patients discover <span style="color:#00AFA5;">{clinic_name}</span> on Google AI.'
+                lead = f"Analysis of local dental search queries structured for Google AI Overviews and modern voice patient acquisition."
+            else: # DEMAND_SURGE
+                eyebrow = f"{city_upper} MARKET INSIGHTS"
+                headline = f'More patients are searching for dental care in <span style="color:#00AFA5;">{city}.</span>'
+                lead = f"Here's a quick growth audit for {clinic_name} and what it means for your next stage of growth."
+            cta_text = "View Your Full Growth Audit &rarr;"
 
         return f"""
         <!-- COMPONENT: Two-Column Hero -->
@@ -87,20 +114,20 @@ class EmailComponents:
               <div style="font-size:11px;font-weight:800;color:#00AFA5;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">
                 {eyebrow}
               </div>
-              <h1 style="font-size:26px;line-height:1.22;font-weight:800;color:#172C46;margin:0 0 12px 0;letter-spacing:-0.5px;">
+              <h1 class="hero-headline" style="font-size:26px;line-height:1.22;font-weight:800;color:#142C49;margin:0 0 12px 0;letter-spacing:-0.5px;">
                 {headline}
               </h1>
-              <p style="font-size:14px;line-height:1.55;color:#4A5E6B;margin:0 0 20px 0;">
+              <p class="hero-lead" style="font-size:14px;line-height:1.55;color:#506879;margin:0 0 20px 0;">
                 {lead}
               </p>
               <div>
                 <a href="{url}" target="_blank" style="background-color:#00AFA5;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;padding:13px 26px;border-radius:24px;display:inline-block;box-shadow:0 4px 12px rgba(0,175,165,0.28);">
-                  View Your Full Growth Audit &rarr;
+                  {cta_text}
                 </a>
               </div>
             </td>
             <td class="col-stack hero-img-col" width="42%" valign="middle" align="center" style="padding-left:8px;">
-              <img src="{cls.HERO_IMAGE_URL}" alt="Modern Dental Clinic Operatory" style="width:100%;max-width:260px;height:auto;border-radius:14px;display:block;border:0;">
+              <img src="{cls.HERO_IMAGE_URL}" alt="Modern Dental Clinic Operatory" style="width:100%;max-width:260px;height:auto;border-radius:14px;display:block;border:1px solid #F1F5F9;">
             </td>
           </tr>
         </table>
@@ -108,28 +135,28 @@ class EmailComponents:
 
     @classmethod
     def metrics_grid(cls, city: str, angle: str = "DEMAND_SURGE") -> str:
-        """Three Stat Cards Component."""
+        """Three Smart Stat Cards Component with Readability Perfection."""
         stat_1_val = "~18.4K" if angle != "INTAKE_OPTIMIZATION" else "94.2%"
         stat_1_lbl = "Local Search Demand" if angle != "INTAKE_OPTIMIZATION" else "Mobile Discovery"
         stat_1_sub = f"Dental services in {city}" if angle != "INTAKE_OPTIMIZATION" else f"Patients searching via phone in {city}"
 
         return f"""
-        <!-- COMPONENT: Metrics Grid (3 Stat Cards) -->
+        <!-- COMPONENT: Metrics Grid (3 Smart Cards) -->
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:28px;">
           <tr>
-            <td class="col-stack" width="32%" valign="top" style="padding-right:6px;">
+            <td class="col-stack card-spacing" width="32%" valign="top" style="padding-right:6px;">
               <div style="background-color:#F0F8F9;border:1px solid #DDEEF0;border-radius:12px;padding:16px 14px;min-height:96px;">
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                   <tr>
                     <td width="24" valign="middle">
-                      <span style="display:inline-block;width:22px;height:22px;line-height:22px;border-radius:50%;background:#E1F3F4;text-align:center;font-size:11px;">🔍</span>
+                      <span style="display:inline-block;width:22px;height:22px;line-height:22px;border-radius:50%;background-color:#E1F3F4;text-align:center;font-size:11px;">🔍</span>
                     </td>
                     <td valign="middle" style="padding-left:6px;font-size:11px;font-weight:700;color:#556C7A;">
                       {stat_1_lbl}
                     </td>
                   </tr>
                 </table>
-                <div style="font-size:22px;font-weight:800;color:#172C46;margin:10px 0 2px 0;">
+                <div style="font-size:22px;font-weight:800;color:#142C49;margin:10px 0 2px 0;">
                   {stat_1_val} <span style="font-size:11px;font-weight:600;color:#788F9D;">/mo</span>
                 </div>
                 <div style="font-size:10px;color:#788F9D;line-height:1.3;">
@@ -137,12 +164,12 @@ class EmailComponents:
                 </div>
               </div>
             </td>
-            <td class="col-stack" width="32%" valign="top" style="padding:0 3px;">
+            <td class="col-stack card-spacing" width="32%" valign="top" style="padding:0 3px;">
               <div style="background-color:#F0F8F9;border:1px solid #DDEEF0;border-radius:12px;padding:16px 14px;min-height:96px;">
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                   <tr>
                     <td width="24" valign="middle">
-                      <span style="display:inline-block;width:22px;height:22px;line-height:22px;border-radius:50%;background:#E1F3F4;text-align:center;font-size:11px;">📍</span>
+                      <span style="display:inline-block;width:22px;height:22px;line-height:22px;border-radius:50%;background-color:#E1F3F4;text-align:center;font-size:11px;">📍</span>
                     </td>
                     <td valign="middle" style="padding-left:6px;font-size:11px;font-weight:700;color:#556C7A;">
                       Map Searches
@@ -157,12 +184,12 @@ class EmailComponents:
                 </div>
               </div>
             </td>
-            <td class="col-stack" width="32%" valign="top" style="padding-left:6px;">
+            <td class="col-stack card-spacing" width="32%" valign="top" style="padding-left:6px;">
               <div style="background-color:#F0F8F9;border:1px solid #DDEEF0;border-radius:12px;padding:16px 14px;min-height:96px;">
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                   <tr>
                     <td width="24" valign="middle">
-                      <span style="display:inline-block;width:22px;height:22px;line-height:22px;border-radius:50%;background:#E1F3F4;text-align:center;font-size:11px;">📅</span>
+                      <span style="display:inline-block;width:22px;height:22px;line-height:22px;border-radius:50%;background-color:#E1F3F4;text-align:center;font-size:11px;">📅</span>
                     </td>
                     <td valign="middle" style="padding-left:6px;font-size:11px;font-weight:700;color:#556C7A;">
                       Booking Intent
@@ -183,21 +210,21 @@ class EmailComponents:
 
     @classmethod
     def opportunities(cls) -> str:
-        """Key Opportunities Component (3 Structured Focus Cards)."""
+        """Key Opportunities Component (3 Structured Focus Smart Cards)."""
         return """
         <!-- COMPONENT: Key Opportunities -->
         <div style="margin-bottom:28px;">
-          <h2 style="font-size:18px;font-weight:800;color:#172C46;margin:0 0 14px 0;letter-spacing:-0.3px;">
+          <h2 style="font-size:18px;font-weight:800;color:#142C49;margin:0 0 14px 0;letter-spacing:-0.3px;">
             Your Key Opportunities
           </h2>
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
             <tr>
-              <td class="col-stack" width="32%" valign="top" style="padding-right:6px;">
+              <td class="col-stack card-spacing" width="32%" valign="top" style="padding-right:6px;">
                 <div style="background-color:#FFFFFF;border:1px solid #E6EFF0;border-radius:12px;padding:16px 14px;min-height:130px;">
                   <div style="width:32px;height:32px;line-height:32px;border-radius:8px;background-color:#EBF9F8;color:#00AFA5;font-weight:800;font-size:16px;text-align:center;margin-bottom:10px;">
                     G
                   </div>
-                  <div style="font-size:13px;font-weight:700;color:#172C46;margin-bottom:6px;line-height:1.3;">
+                  <div style="font-size:13px;font-weight:700;color:#142C49;margin-bottom:6px;line-height:1.3;">
                     Stronger Local Visibility
                   </div>
                   <div style="font-size:11px;color:#607784;line-height:1.45;">
@@ -205,12 +232,12 @@ class EmailComponents:
                   </div>
                 </div>
               </td>
-              <td class="col-stack" width="32%" valign="top" style="padding:0 3px;">
+              <td class="col-stack card-spacing" width="32%" valign="top" style="padding:0 3px;">
                 <div style="background-color:#FFFFFF;border:1px solid #E6EFF0;border-radius:12px;padding:16px 14px;min-height:130px;">
                   <div style="width:32px;height:32px;line-height:32px;border-radius:8px;background-color:#EFF4FE;color:#3B82F6;font-weight:800;font-size:16px;text-align:center;margin-bottom:10px;">
                     ✦
                   </div>
-                  <div style="font-size:13px;font-weight:700;color:#172C46;margin-bottom:6px;line-height:1.3;">
+                  <div style="font-size:13px;font-weight:700;color:#142C49;margin-bottom:6px;line-height:1.3;">
                     More High-Value Patients
                   </div>
                   <div style="font-size:11px;color:#607784;line-height:1.45;">
@@ -218,12 +245,12 @@ class EmailComponents:
                   </div>
                 </div>
               </td>
-              <td class="col-stack" width="32%" valign="top" style="padding-left:6px;">
+              <td class="col-stack card-spacing" width="32%" valign="top" style="padding-left:6px;">
                 <div style="background-color:#FFFFFF;border:1px solid #E6EFF0;border-radius:12px;padding:16px 14px;min-height:130px;">
                   <div style="width:32px;height:32px;line-height:32px;border-radius:8px;background-color:#F5EEFD;color:#8B5CF6;font-weight:800;font-size:16px;text-align:center;margin-bottom:10px;">
                     📊
                   </div>
-                  <div style="font-size:13px;font-weight:700;color:#172C46;margin-bottom:6px;line-height:1.3;">
+                  <div style="font-size:13px;font-weight:700;color:#142C49;margin-bottom:6px;line-height:1.3;">
                     Turn Interest into Bookings
                   </div>
                   <div style="font-size:11px;color:#607784;line-height:1.45;">
@@ -238,14 +265,14 @@ class EmailComponents:
 
     @classmethod
     def demand_and_opportunity(cls, clinic_name: str) -> str:
-        """Two-Column Demand Progress Bars & Opportunity Dark Card with SVG Trend."""
+        """Two-Column Demand Progress Bars & Opportunity Dark Card with Glowing SVG Curve."""
         return f"""
         <!-- COMPONENT: Demand Progress & Opportunity Card -->
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:28px;">
           <tr>
-            <td class="col-stack" width="50%" valign="top" style="padding-right:8px;">
+            <td class="col-stack card-spacing" width="50%" valign="top" style="padding-right:8px;">
               <div style="background-color:#FFFFFF;border:1px solid #E6EFF0;border-radius:12px;padding:18px 16px;min-height:190px;">
-                <div style="font-size:12px;font-weight:800;color:#172C46;margin-bottom:14px;">
+                <div style="font-size:12px;font-weight:800;color:#142C49;margin-bottom:14px;">
                   Canadian Dental Search Demand
                 </div>
                 
@@ -298,7 +325,7 @@ class EmailComponents:
                 </table>
               </div>
             </td>
-            <td class="col-stack" width="50%" valign="top" style="padding-left:8px;">
+            <td class="col-stack card-spacing" width="50%" valign="top" style="padding-left:8px;">
               <div style="background-color:#0F2438;border-radius:12px;padding:20px 18px;min-height:190px;color:#FFFFFF;">
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;">
                   <tr>
@@ -334,7 +361,7 @@ class EmailComponents:
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
             <tr>
               <td class="col-stack" valign="middle" style="padding-right:12px;white-space:nowrap;">
-                <span style="font-size:12px;font-weight:800;color:#172C46;letter-spacing:0.3px;">The VALIOZ Difference</span>
+                <span style="font-size:12px;font-weight:800;color:#142C49;letter-spacing:0.3px;">The VALIOZ Difference</span>
               </td>
               <td class="col-stack" valign="middle" align="center" style="padding:0 6px;color:#788F9D;font-size:11px;">
                 <span style="color:#00AFA5;font-weight:bold;">👥</span> A dedicated healthcare team
@@ -353,14 +380,14 @@ class EmailComponents:
         """
 
     @classmethod
-    def primary_cta(cls, booking_url: str = None) -> str:
-        """Prominent CTA Button Component matching prototype with calendar icon."""
+    def primary_cta(cls, booking_url: str = None, cta_label: str = "Book Your Free Growth Audit") -> str:
+        """Prominent CTA Button Component with Calendar Icon."""
         url = booking_url or cls.BOOKING_URL
         return f"""
         <!-- COMPONENT: Primary Call To Action -->
         <div style="text-align:center;margin:32px 0 20px 0;">
           <a href="{url}" target="_blank" style="background-color:#00AFA5;color:#ffffff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 36px;border-radius:28px;display:inline-block;box-shadow:0 6px 18px rgba(0,175,165,0.28);letter-spacing:0.3px;">
-            📅 Book Your Free Growth Audit &rarr;
+            📅 {cta_label} &rarr;
           </a>
         </div>
         """
@@ -371,13 +398,13 @@ class EmailComponents:
         return f"""
         <!-- COMPONENT: Fast Reply Prompt & Legal Footer -->
         <div style="text-align:center;font-size:13px;color:#556C7A;margin:0 0 28px 0;line-height:1.5;">
-          Or simply reply <b style="color:#172C46;">&ldquo;YES&rdquo;</b> to this email, and we'll send you the full diagnostic video.
+          Or simply reply <b style="color:#142C49;">&ldquo;YES&rdquo;</b> to this email, and we'll send you the full diagnostic video.
         </div>
 
         <div style="border-top:1px solid #EAEFEF;border-bottom:1px solid #EAEFEF;padding:14px 4px;margin-bottom:16px;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
             <tr>
-              <td valign="middle" align="left" class="col-stack" style="font-size:11px;color:#172C46;">
+              <td valign="middle" align="left" class="col-stack" style="font-size:11px;color:#142C49;">
                 <b style="color:#00AFA5;">VALIOZ Health</b> <span style="color:#CBD6DA;padding:0 6px;">|</span> Healthcare Digital Growth
               </td>
               <td valign="middle" align="right" class="col-stack" style="font-size:11px;color:#556C7A;">
@@ -412,7 +439,7 @@ class EmailComponents:
         booking_url = cls.BOOKING_URL
 
         header_html = cls.header(name, logo_url, site_url)
-        hero_html = cls.hero(name, city, angle, booking_url)
+        hero_html = cls.hero(name, city, step=step, angle=angle, booking_url=booking_url)
         metrics_html = cls.metrics_grid(city, angle)
         opps_html = cls.opportunities()
         demand_html = cls.demand_and_opportunity(name)
@@ -433,9 +460,10 @@ class EmailComponents:
       padding: 0 !important;
       background: #ffffff !important;
       background-color: #ffffff !important;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
       -webkit-text-size-adjust: 100%;
       -ms-text-size-adjust: 100%;
+      -webkit-font-smoothing: antialiased;
     }}
     table {{
       border-collapse: collapse !important;
@@ -465,15 +493,24 @@ class EmailComponents:
         max-width: 100% !important;
         padding-left: 0 !important;
         padding-right: 0 !important;
-        padding-bottom: 12px !important;
         box-sizing: border-box !important;
       }}
+      .card-spacing {{
+        padding-bottom: 10px !important;
+      }}
+      .hero-headline {{
+        font-size: 23px !important;
+        line-height: 1.25 !important;
+      }}
       .hero-img-col img {{
-        margin: 12px auto 0 auto !important;
+        margin: 14px auto 0 auto !important;
         max-width: 280px !important;
       }}
       .hide-mobile {{
         display: none !important;
+      }}
+      .valioz-logo-img, .clinic-logo-img {{
+        height: 26px !important;
       }}
     }}
   </style>
@@ -484,7 +521,7 @@ class EmailComponents:
   </div>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#ffffff;background-color:#ffffff;">
     <tr>
-      <td align="center" class="email-padding" style="padding:24px 12px;background:#ffffff;background-color:#ffffff;">
+      <td align="center" class="email-padding" style="padding:28px 16px;background:#ffffff;background-color:#ffffff;">
         <table role="presentation" class="email-shell" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:#ffffff;background-color:#ffffff;text-align:left;">
           <tr>
             <td>
