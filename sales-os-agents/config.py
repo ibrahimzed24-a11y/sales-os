@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     sender_name: str = "Valioz Health"
     # Canadian CASL footer
     legal_business_name: str = "Valioz Health Inc."
-    mailing_address: str = "123 Queen St W, Toronto, ON M5H 2M9, Canada"
+    mailing_address: str = "Valioz Health · 3rd Floor, Al Loaloa Tower · 38 El Galaa Street · Damietta 34511 · EGYPT"
     unsubscribe_base_url: str = "https://osv.nilesupplies.com/unsubscribe"
     # LLM
     openai_api_key: str = ""

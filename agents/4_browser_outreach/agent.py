@@ -67,6 +67,7 @@ print(json.dumps(result))
         if not html_file_path.exists():
             return {"success": False, "error": f"HTML file not found: {html_file_path}"}
 
+        to_email = to_email.strip().rstrip(",")
         html_content = html_file_path.read_text(encoding="utf-8")
         import base64
         payload_b64 = base64.b64encode(html_content.encode("utf-8")).decode()
@@ -94,7 +95,18 @@ if "/mailboxes/INBOX" not in url or "/INBOX." in url:
     goto_url("https://mail.hostinger.com/0/mailboxes/INBOX")
     time.sleep(3)
 
-# Click 'New message'
+# Dismiss any lingering modal / dialog if open
+js(\"\"\"(function(){{
+    var modalBtns = document.querySelectorAll('.modal button, [role=\"dialog\"] button, .ui-dialog button');
+    for (var i = 0; i < modalBtns.length; i++) {{
+        var t = (modalBtns[i].innerText || '').toLowerCase();
+        if (t.includes('ok') || t.includes('close') || t.includes('dismiss')) {{
+            modalBtns[i].click();
+        }}
+    }}
+}})()\"\"\")
+
+# Click 'New message' if composer not open
 click_expr = \"\"\"(function(){{
     var btn = document.querySelector('[data-qa=\"sidebar-new-message\"]');
     if (btn) {{
@@ -112,7 +124,6 @@ click_expr = \"\"\"(function(){{
     return 'no';
 }})()\"\"\"
 
-# Check if composer is already open
 composer_open = js("!!document.getElementById('to') && !!document.getElementById('subject')")
 
 if not composer_open:
@@ -121,50 +132,62 @@ if not composer_open:
             break
         time.sleep(1)
 
-    # Wait for compose fields
     for _ in range(30):
         if js("!!document.getElementById('to') && !!document.getElementById('subject')"):
             break
         time.sleep(0.5)
 
-# Check if recipient chip is already committed
+# Target email clean
 to_addr = {json.dumps(to_email)}
-has_chip_expr = \"\"\"(function(){{
-    var bs = Array.from(document.querySelectorAll('button')).map(function(b){{ return (b.innerText || '').trim(); }});
-    return bs.includes(%s);
-}})()\"\"\" % json.dumps(to_addr)
 
-has_chip = js(has_chip_expr)
+# Clean up unwanted or malformed chips
+cleanup_chips_expr = \"\"\"(function(target){{
+    var chips = Array.from(document.querySelectorAll('button.h-chip'));
+    chips.forEach(function(b){{
+        var txt = (b.innerText || '').trim();
+        if (txt !== target || txt.includes(',')) {{
+            var dismiss = b.querySelector('.h-chip__dismiss');
+            if (dismiss) dismiss.click();
+        }}
+    }});
+    return 'cleaned';
+}})(%s)\"\"\" % json.dumps(to_addr)
+js(cleanup_chips_expr)
+time.sleep(0.5)
 
-if has_chip:
-    chip_committed = True
-else:
-    set_to = \"\"\"(function(){{
+# Check if target recipient chip is already committed
+has_target_chip_expr = \"\"\"(function(target){{
+    var chips = Array.from(document.querySelectorAll('button.h-chip')).map(function(b){{
+        return (b.innerText || '').trim();
+    }});
+    return chips.includes(target);
+}})(%s)\"\"\" % json.dumps(to_addr)
+
+chip_committed = js(has_target_chip_expr)
+
+if not chip_committed:
+    set_to = \"\"\"(function(target){{
         var e = document.getElementById('to');
         if (!e) return 'no';
         e.focus();
         var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-        setter.call(e, %s);
+        setter.call(e, '');
+        setter.call(e, target);
         e.dispatchEvent(new Event('input', {{bubbles: true}}));
         e.dispatchEvent(new Event('change', {{bubbles: true}}));
         e.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}}));
         e.dispatchEvent(new KeyboardEvent('keyup', {{key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}}));
+        e.blur();
         return 'ok';
-    }})()\"\"\" % json.dumps(to_addr)
+    }})(%s)\"\"\" % json.dumps(to_addr)
 
     js(set_to)
     time.sleep(0.5)
     press_key(\"Tab\")
     time.sleep(1)
     
-    chip_committed = False
     for attempt in range(5):
-        chips_present = js(\"\"\"(function(){{
-            var bs = Array.from(document.querySelectorAll('button')).map(function(b){{ return (b.innerText || '').trim(); }});
-            return bs.some(function(t){{ return t.includes(%s); }});
-        }})()\"\"\" % json.dumps(to_addr))
-        val = js(\"(function(){{var e=document.getElementById('to');return e ? e.value : '__none__';}})()\")
-        if chips_present or val == \"\":
+        if js(has_target_chip_expr):
             chip_committed = True
             break
         js(\"\"\"(function(){{
@@ -173,6 +196,7 @@ else:
                 e.focus();
                 e.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}}));
                 e.dispatchEvent(new KeyboardEvent('keyup', {{key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}}));
+                e.blur();
             }}
         }})()\"\"\")
         time.sleep(0.5)
@@ -286,6 +310,7 @@ print(json.dumps({{"success": toast_seen, "to": to_addr, "subject": subj}}))
             clinic = {
                 "clinic_name": "Brampton Dental Arts",
                 "city": "Brampton",
+                "province": "ON",
                 "slug": clinic_slug,
                 "email": test_recipient,
                 "doctor_last_name": "Sheikh",
@@ -297,7 +322,8 @@ print(json.dumps({{"success": toast_seen, "to": to_addr, "subject": subj}}))
             html_path = test_dir / "test_email.html"
             html_path.write_text(html_content, encoding="utf-8")
         except Exception as e:
-            html_path = ROOT / f"dist/outreach-queue/test/test_email.html"
+            print(f"[ERROR] Failed to assemble fresh email template: {e}")
+            raise e
 
         subject = f"[TEST] Dr. Sheikh, your Brampton Dental Arts growth audit (VALIOZ Health)"
         print(f"=== DISPATCHING TEST EMAIL ===")

@@ -3,7 +3,7 @@ VALIOZ Health — Autonomous Email Component Architecture.
 Modern, responsive email components, smart cards, and readability perfection.
 Pure white background (#ffffff), zero flat image slices for email body content.
 Dual-brand header with public CDN-hosted assets and complete sequence support.
-Powered by the verified bulletproof template suite from valioz-email-suite.
+Powered by the verified bulletproof template suite matching the prototype design.
 """
 
 import os
@@ -18,6 +18,7 @@ class EmailComponents:
     # Public Vercel CDN URLs with universal CORS and standard MIME headers
     VALIOZ_LOGO_URL = "https://osv.nilesupplies.com/assets/valioz-logo-horizontal.png"
     HERO_IMAGE_URL = "https://osv.nilesupplies.com/assets/dental-chair-hero.jpg"
+    OPPORTUNITY_CURVE_URL = "https://osv.nilesupplies.com/assets/opportunity-curve.png"
     CLINIC_LOGOS_BASE = "https://osv.nilesupplies.com/assets/clinic-logos"
     BOOKING_URL = "https://health.valioz.com/"
 
@@ -33,13 +34,14 @@ class EmailComponents:
     def assemble(cls, clinic: Dict[str, Any], step: str = "01-welcome", angle: str = "DEMAND_SURGE") -> str:
         """
         Assemble bulletproof pure-white responsive email prototype.
-        Uses the verified sanitizer-proof templates with live HTML/CSS bar curves.
+        Uses the verified sanitizer-proof templates matching Image 6 prototype design.
         """
         clinic_name = clinic.get("clinic_name", "Brampton Dental Arts")
         city = clinic.get("city", "Brampton")
         province = clinic.get("province", "ON")
         email = clinic.get("email", "")
-        slug = clinic.get("slug") or clinic_name.lower().replace(" ", "-")
+        slug = clinic.get("slug") or clinic_name.lower().replace(" ", "-").replace("'", "")
+        logo_url = clinic.get("logo_url") or f"{cls.CLINIC_LOGOS_BASE}/{slug}.png"
 
         encoded_email = urllib.parse.quote(email)
         encoded_name = urllib.parse.quote(clinic_name)
@@ -50,15 +52,20 @@ class EmailComponents:
         template_path = TEMPLATE_DIR / template_filename
 
         if template_path.exists():
-            raw_html = template_path.read_text(encoding="utf-8")
+            html = template_path.read_text(encoding="utf-8")
             
-            # Clean replacements preserving structure
-            html = raw_html.replace("Brampton Dental Arts", clinic_name)
+            # Clean replacements for template variables
+            html = html.replace("{{CLINIC_LOGO_URL}}", logo_url)
+            html = html.replace("{{CLINIC_NAME}}", clinic_name)
+            html = html.replace("{{CITY}}", city)
+            html = html.replace("{{PROVINCE}}", province)
+            html = html.replace("{{BOOKING_URL}}", booking_url)
+            html = html.replace("{{UNSUBSCRIBE_URL}}", unsub_url)
+
+            # Fallback string replacements
+            html = html.replace("Brampton Dental Arts", clinic_name)
             html = html.replace("BRAMPTON", city.upper())
             html = html.replace("Brampton", city)
-            html = html.replace(f"{city}, ON", f"{city}, {province}")
-            html = html.replace("https://health.valioz.com/unsubscribe/?clinic=Brampton%20Dental%20Arts", unsub_url)
-            html = html.replace("https://health.valioz.com/?clinic=Brampton%20Dental%20Arts&angle=1", booking_url)
             return html
 
         # Fallback inline generation if template directory is unavailable
