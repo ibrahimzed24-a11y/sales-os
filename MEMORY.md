@@ -12,6 +12,8 @@
 4. **Reliable Asset Hosting**:
    - Host all logos and imagery on Vercel CDN (`https://osv.nilesupplies.com/assets/...`).
    - Never use `raw.githubusercontent.com` URLs in email markup, as Hostinger Webmail, Gmail proxy, and Outlook block raw code repositories.
+5. **Standalone HTML Architecture**:
+   - All email prototypes, lead databases, schedule dashboards, market demand reports, and growth briefs have self-contained, standalone responsive HTML versions in `public/` (`/hub.html`, `/email-suite/`, `/scheduler-dashboard.html`, `/leads-intelligence.html`, `/dental-demand-report.html`, `/growth-brief.html`) so they can be viewed, audited, and executed with zero dependencies.
 
 ## Strategic Rotating Scheduler Directives
 1. **Canadian Sunrise Cadence**:
