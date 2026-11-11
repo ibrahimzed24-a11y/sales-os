@@ -97,6 +97,11 @@ if "/mailboxes/INBOX" not in url or "/INBOX." in url:
 
 # Click 'New message'
 click_expr = \"\"\"(function(){{
+    var btn = document.querySelector('[data-qa=\"sidebar-new-message\"]');
+    if (btn) {{
+        btn.click();
+        return 'ok';
+    }}
     var bs = document.querySelectorAll('button');
     for (var i = 0; i < bs.length; i++) {{
         var t = (bs[i].innerText || '').trim();
@@ -115,10 +120,10 @@ if not composer_open:
     for _ in range(20):
         if js(click_expr) == 'ok':
             break
-        time.sleep(0.5)
+        time.sleep(1)
 
     # Wait for compose fields
-    for _ in range(20):
+    for _ in range(30):
         if js("!!document.getElementById('to') && !!document.getElementById('subject')"):
             break
         time.sleep(0.5)
@@ -138,32 +143,42 @@ else:
     set_to = \"\"\"(function(){{
         var e = document.getElementById('to');
         if (!e) return 'no';
+        e.focus();
         var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
         setter.call(e, %s);
         e.dispatchEvent(new Event('input', {{bubbles: true}}));
         e.dispatchEvent(new Event('change', {{bubbles: true}}));
+        e.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}}));
+        e.dispatchEvent(new KeyboardEvent('keyup', {{key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}}));
         return 'ok';
     }})()\"\"\" % json.dumps(to_addr)
 
     js(set_to)
+    time.sleep(0.5)
+    press_key(\"Tab\")
+    time.sleep(1)
+    
     chip_committed = False
     for attempt in range(5):
-        js(\"(function(){{var e=document.getElementById('to');if(e)e.focus();}})()\")
-        time.sleep(2 if attempt == 0 else 1)
-        press_key(\"Enter\")
+        chips_present = js(\"\"\"(function(){{
+            var bs = Array.from(document.querySelectorAll('button')).map(function(b){{ return (b.innerText || '').trim(); }});
+            return bs.some(function(t){{ return t.includes(%s); }});
+        }})()\"\"\" % json.dumps(to_addr))
+        val = js(\"(function(){{var e=document.getElementById('to');return e ? e.value : '__none__';}})()\")
+        if chips_present or val == \"\":
+            chip_committed = True
+            break
         js(\"\"\"(function(){{
             var e = document.getElementById('to');
             if (e) {{
+                e.focus();
                 e.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}}));
                 e.dispatchEvent(new KeyboardEvent('keyup', {{key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}}));
             }}
         }})()\"\"\")
+        time.sleep(0.5)
+        press_key(\"Tab\")
         time.sleep(1)
-        has_chip_now = js(has_chip_expr)
-        val = js(\"(function(){{var e=document.getElementById('to');return e ? e.value : '__none__';}})()\")
-        if has_chip_now or val == \"\":
-            chip_committed = True
-            break
 
 if not chip_committed:
     print(json.dumps({{"success": False, "error": "Failed to commit recipient chip in #to"}}))
@@ -225,25 +240,26 @@ rect_expr = \"\"\"(function(){{
 }})()\"\"\"
 
 rect = js(rect_expr)
-if not rect or rect.get("disabled"):
-    # Fallback to direct button click if coordinates fail
-    js(\"\"\"(function(){{
-        var bs = document.querySelectorAll('button');
-        for (var i = 0; i < bs.length; i++) {{
-            if ((bs[i].innerText || '').trim() === 'Send') {{
-                bs[i].click();
-                return;
-            }}
-        }}
-    }})()\"\"\")
-else:
+if rect and not rect.get("disabled"):
     click_at_xy(rect["x"], rect["y"])
+time.sleep(1)
+# Guarantee click if still open
+js(\"\"\"(function(){{
+    var bs = document.querySelectorAll('button');
+    for (var i = 0; i < bs.length; i++) {{
+        if ((bs[i].innerText || '').trim() === 'Send' && !bs[i].disabled) {{
+            bs[i].click();
+            return;
+        }}
+    }}
+}})()\"\"\")
 
-# Wait for toast confirmation
+# Wait for toast confirmation or composer closure
 toast_seen = False
 for _ in range(30):
     body_text = js("(document.body.innerText || '')")
-    if "Message sent successfully" in body_text or "Message sent" in body_text:
+    composer_closed = js("!document.getElementById('to')")
+    if "Message sent successfully" in body_text or "Message sent" in body_text or composer_closed:
         toast_seen = True
         break
     time.sleep(0.5)
