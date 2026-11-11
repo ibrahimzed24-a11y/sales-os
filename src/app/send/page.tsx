@@ -130,6 +130,29 @@ export default function AgentsOutreachPage() {
     }
   };
 
+  const triggerBrowserAction = async (action: 'check' | 'test-send' | 'scan') => {
+    setRunning(true);
+    setRunResult(null);
+    try {
+      const res = await fetch('/api/agents/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent: '4_browser_outreach',
+          action: action,
+          recipient: 'ibrahim.zed24@gmail.com',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to run agent action');
+      setRunResult(data.output || JSON.stringify(data));
+    } catch (err: any) {
+      setRunResult(`Execution error: ${err.message}`);
+    } finally {
+      setRunning(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Banner / Mission Statement */}
@@ -260,6 +283,24 @@ export default function AgentsOutreachPage() {
                     <span>Cadence:</span>
                     <span className="font-medium text-fg">{agent.schedule}</span>
                   </div>
+                  {agent.name === '4_browser_outreach' && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        onClick={() => triggerBrowserAction('test-send')}
+                        disabled={running}
+                        className="rounded bg-teal-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-teal-700 transition disabled:opacity-50"
+                      >
+                        Test Send Dual-Brand
+                      </button>
+                      <button
+                        onClick={() => triggerBrowserAction('check')}
+                        disabled={running}
+                        className="rounded border border-line px-2.5 py-1 text-[11px] font-medium text-muted hover:text-fg transition disabled:opacity-50"
+                      >
+                        Check Session
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

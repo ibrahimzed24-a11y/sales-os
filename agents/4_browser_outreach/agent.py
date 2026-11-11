@@ -299,6 +299,43 @@ print(json.dumps({{"success": toast_seen, "to": to_addr, "subject": subj}}))
         print(f"Result: {result}")
         return result
 
+    def run_queue(self, date_str: str = None, dry_run: bool = False) -> dict:
+        """Process and dispatch all queued outreach emails from the manifest."""
+        if not date_str:
+            date_str = datetime.now().strftime("%Y-%m-%d")
+        manifest_path = ROOT / f"dist/outreach-queue/{date_str}/manifest.json"
+        if not manifest_path.exists():
+            return {"success": False, "error": f"Manifest not found for {date_str}"}
+
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        results = []
+        print(f"=== BROWSER OUTREACH: Processing Queue for {date_str} ({len(manifest.get('sends', []))} clinics) ===")
+
+        for send in manifest.get("sends", []):
+            if send.get("status") == "SENT":
+                print(f"[SKIP] {send['clinic']} already sent.")
+                continue
+
+            html_file = ROOT / send["htmlPath"]
+            if not html_file.exists():
+                print(f"[ERROR] Template missing for {send['clinic']}: {html_file}")
+                results.append({"clinic": send["clinic"], "success": False, "error": "HTML not found"})
+                continue
+
+            print(f">>> Dispatching dual-brand outreach to {send['clinic']} <{send['to']}> (TZ: {send.get('timeZoneCode')})...")
+            if dry_run:
+                results.append({"clinic": send["clinic"], "to": send["to"], "success": True, "dry_run": True})
+            else:
+                res = self.send_email(to_email=send["to"], subject=send["subject"], html_file_path=html_file)
+                if res.get("success"):
+                    send["status"] = "SENT"
+                    send["sent_at"] = datetime.now(timezone.utc).isoformat()
+                results.append({"clinic": send["clinic"], "to": send["to"], "result": res})
+                time.sleep(2)
+
+        manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        return {"success": True, "dispatches": results}
+
     def scan_inbox(self) -> list:
         """Read recent threads from Hostinger webmail inbox."""
         script = """
@@ -344,6 +381,15 @@ if __name__ == "__main__":
         recipient = sys.argv[idx + 1] if len(sys.argv) > idx + 1 else "ibrahim.zed24@gmail.com"
         res = agent.send_test_email(test_recipient=recipient)
         print("Test Send Result:", res)
+    elif "--run-queue" in sys.argv:
+        dry_run = "--dry-run" in sys.argv
+        date_arg = None
+        if "--date" in sys.argv:
+            idx = sys.argv.index("--date")
+            if len(sys.argv) > idx + 1:
+                date_arg = sys.argv[idx + 1]
+        res = agent.run_queue(date_str=date_arg, dry_run=dry_run)
+        print("Queue Run Result:", res)
     elif "--scan" in sys.argv:
         threads = agent.scan_inbox()
         print(f"Scanned {len(threads)} inbox items:", threads)
@@ -351,4 +397,5 @@ if __name__ == "__main__":
         print("Usage:")
         print("  python agent.py --check")
         print("  python agent.py --test-send <email>")
+        print("  python agent.py --run-queue [--dry-run] [--date YYYY-MM-DD]")
         print("  python agent.py --scan")
