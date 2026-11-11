@@ -27,6 +27,16 @@ try:
 except ImportError:
     terse = None
 
+import importlib.util
+native_path = Path(__file__).parent / "native_template.py" if "__file__" in locals() else ROOT / "agents/3_copywriter/native_template.py"
+if native_path.exists():
+    native_spec = importlib.util.spec_from_file_location("native_template", str(native_path))
+    native_module = importlib.util.module_from_spec(native_spec)
+    native_spec.loader.exec_module(native_module)
+    NativeEmailEngine = native_module.NativeEmailEngine
+else:
+    NativeEmailEngine = None
+
 # Sourced Keyword Planner Snapshot
 SNAPSHOT_BARS = [
     {"label": "General dentistry", "range": "100K-1M", "width": 94, "color": "#03A8A4"},
@@ -36,15 +46,17 @@ SNAPSHOT_BARS = [
 ]
 
 class DualBrandTemplateEngine:
-    ASSET_BASE_URL = "https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets"
     BOOKING_URL = "https://health.valioz.com/"
 
     @classmethod
     def render_email(cls, clinic: dict, step: str = "01-welcome") -> str:
         """
-        Render the core pixel-level sliced visual email template.
-        Uses pure white background (#ffffff) and responsive 600px shell.
+        Render genuine editable native HTML email components.
+        Zero image slices, zero externally hosted graphics.
         """
+        if NativeEmailEngine:
+            return NativeEmailEngine.render(clinic, step)
+        
         name = clinic.get("clinic_name", "Brampton Dental Arts")
         email = clinic.get("email", "")
         encoded_email = urllib.parse.quote(email)

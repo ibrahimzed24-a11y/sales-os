@@ -19,6 +19,7 @@ import {
   Eye,
   Check
 } from 'lucide-react';
+import { PrototypeEmail } from '@/components/email/PrototypeEmail';
 
 interface AgentInfo {
   name: string;
@@ -390,71 +391,20 @@ export default function AgentsOutreachPage() {
         <div className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-base font-semibold">Core Sliced Visual Template Engine (Pure-White #FFFFFF)</h3>
+              <h3 className="text-base font-semibold">Live Pure-HTML Component Prototype (No Flat Images)</h3>
               <p className="text-xs text-muted">
-                Pixel-level responsive 600px email layout with high-converting visual demand intelligence slices.
+                Every component is built as pure HTML/CSS email architecture: responsive cards, metrics, live typography, and SVG charts.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full bg-teal-500/10 px-2.5 py-0.5 text-xs font-semibold text-teal-600">
-                Active Core Design
+              <span className="inline-flex items-center rounded-full bg-teal-500/10 px-3 py-1 text-xs font-semibold text-teal-600">
+                Live Prototype Mode
               </span>
             </div>
           </div>
 
-          {/* Email Preview Card */}
-          <div className="mx-auto max-w-[620px] rounded-xl border border-line bg-white p-2 sm:p-4 text-slate-800 shadow-md">
-            <div className="overflow-hidden rounded-lg border border-slate-100 bg-white">
-              {/* Slice 1: Top Visual with Dual-Brand Header, Insights & Demand */}
-              <img
-                src="https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets/email_top.jpg"
-                alt="VALIOZ Health Growth Audit - Brampton Dental Arts"
-                className="w-full h-auto block"
-              />
-
-              {/* Slice 2: Interactive CTA Button */}
-              <a
-                href="https://health.valioz.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block hover:opacity-95 transition-opacity"
-              >
-                <img
-                  src="https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets/email_cta.jpg"
-                  alt="Book Your Free Growth Audit"
-                  className="w-full h-auto block"
-                />
-              </a>
-
-              {/* Slice 3: Footer with Fast Reply & Contact */}
-              <img
-                src="https://raw.githubusercontent.com/ibrahimzed24-a11y/sales-os/main/assets/email_footer.jpg"
-                alt="VALIOZ Health & Brampton Dental Arts Information"
-                className="w-full h-auto block"
-              />
-
-              {/* Legal Unsubscribe & Brand Links */}
-              <div className="bg-white py-3 px-4 text-center text-xs text-slate-500 border-t border-slate-100">
-                <a
-                  href="https://health.valioz.com/unsubscribe/?clinic=Brampton%20Dental%20Arts"
-                  className="text-slate-500 underline hover:text-slate-700"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Unsubscribe
-                </a>
-                {' '}·{' '}
-                <a
-                  href="https://health.valioz.com/"
-                  className="text-teal-600 underline hover:text-teal-700 font-medium"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  VALIOZ Health
-                </a>
-              </div>
-            </div>
-          </div>
+          {/* Interactive Prototype Component */}
+          <PrototypeEmail />
         </div>
       )}
 

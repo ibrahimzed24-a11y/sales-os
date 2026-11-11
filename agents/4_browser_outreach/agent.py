@@ -196,6 +196,8 @@ inject_expr = \"\"\"(function(){{
         var b = d && d.querySelector('[data-qa=\"composer-content-body\"]');
         if (b) {{
             b.innerHTML = html;
+            b.dispatchEvent(new Event('input', {{bubbles: true}}));
+            b.dispatchEvent(new Event('change', {{bubbles: true}}));
             return 'injected';
         }}
     }}
